@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">C6 Register Master Dashboard - ESIC</title>
+    <!-- SheetJS CDN for Export to Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1280px;
+            background: #fff;
+            margin: 0 auto;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Top Bar & Upload */
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .upload-section {
+            border: 2px dashed #27ae60;
+            padding: 20px;
+            text-align: center;
+            border-radius: 6px;
+            background: #f9fbf9;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .upload-section:hover {
+            border-color: #1e8449;
+            background: #eafaf1;
+        }
+        #fileInput { display: none; }
+
+        .status-message {
+            font-weight: bold;
+            color: #27ae60;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Employer Card */
+        .employer-card {
+            background-color: #eaf2f8;
+            border: 1px solid #aed6f1;
+            border-radius: 6px;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .employer-card h3 {
+            margin: 0 0 8px 0;
+            color: #1b4f72;
+            font-size: 15px;
+            border-bottom: 1px solid #d4efdf;
+            padding-bottom: 4px;
+        }
+        .employer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        /* Summary KPIs */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .kpi-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            border-left: 5px solid #2980b9;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); }
+        .kpi-card.shortfall { border-left-color: #d35400; background-color: #fdf2e9; }
+        .kpi-card.missing { border-left-color: #c0392b; background-color: #fadbd8; }
+        .kpi-card.interest { border-left-color: #2980b9; background-color: #ebf5fb; }
+        .kpi-card.damages { border-left-color: #8e44ad; background-color: #f5eeed; }
+
+        .kpi-card span {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .kpi-card h3 {
+            margin: 0;
+            font-size: 22px;
+            color: #2c3e50;
+        }
+
+        .target-info-line {
+            font-size: 15px;
+            font-weight: bold;
+            color: #2c3e50;
+            background-color: #f2f4f4;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border-left: 4px solid #27ae60;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        /* Navigation Tabs */
+        .quick-nav-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #eef2f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #d5dbdb;
+        }
+        .nav-tab-btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 12px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #333;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .nav-tab-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+        }
+        .nav-tab-btn.tab-master { border-color: #2c3e50; color: #2c3e50; }
+        .nav-tab-btn.tab-actual { border-color: #d35400; color: #d35400; }
+        .nav-tab-btn.tab-adhoc { border-color: #c0392b; color: #c0392b; }
+        .nav-tab-btn.tab-interest { border-color: #2980b9; color: #2980b9; }
+        .nav-tab-btn.tab-damages { border-color: #8e44ad; color: #8e44ad; }
+
+        .nav-tab-btn.active.tab-master { background: #2c3e50; color: #fff; }
+        .nav-tab-btn.active.tab-actual { background: #d35400; color: #fff; }
+        .nav-tab-btn.active.tab-adhoc { background: #c0392b; color: #fff; }
+        .nav-tab-btn.active.tab-interest { background: #2980b9; color: #fff; }
+        .nav-tab-btn.active.tab-damages { background: #8e44ad; color: #fff; }
+
+        .adhoc-controls {
+            background-color: #fdf2e9;
+            border: 1px solid #f5c6cb;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .adhoc-controls label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #721c24;
+        }
+        .adhoc-controls input {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100px;
+            font-weight: bold;
+        }
+
+        .barred-info-box {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        /* Tables */
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            white-space: nowrap;
+        }
+        .report-table th, .report-table td {
+            border: 1px solid #dcdde1;
+            padding: 8px 10px;
+            text-align: center;
+            font-size: 13px;
+        }
+        .report-table th { position: sticky; top: 0; color: white; }
+        
+        .header-master { background-color: #2c3e50; }
+        .header-actual { background-color: #d35400; }
+        .header-adhoc { background-color: #c0392b; }
+        .header-interest { background-color: #2980b9; }
+        .header-damages { background-color: #8e44ad; }
+
+        .report-table tr:nth-child(even) { background-color: #f8f9fa; }
+
+        .page-header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9f9;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #34495e;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .btn-action {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-excel { background-color: #27ae60; color: white; }
+        .btn-excel:hover { background-color: #1e8449; }
+        .btn-word { background-color: #2980b9; color: white; }
+        .btn-word:hover { background-color: #1b4f72; }
+        .btn-print { background-color: #7f8c8d; color: white; }
+        .btn-print:hover { background-color: #616a6b; }
+        .btn-clear { background-color: #c0392b; color: white; }
+        .btn-clear:hover { background-color: #962d22; }
+
+        .page-view { display: none; }
+
+        /* Modal Overlay & Styling */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #fff;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+        .modal-title {
+            margin-top: 0;
+            color: #d9534f;
+            font-size: 20px;
+            border-bottom: 2px solid #f5c6cb;
+            padding-bottom: 10px;
+        }
+        .modal-body {
+            font-size: 14px;
+            color: #333333;
+            line-height: 1.5;
+            margin: 15px 0;
+        }
+        .modal-divider {
+            border: 0;
+            border-top: 1px solid #e0e0e0;
+            margin: 12px 0;
+        }
+        .modal-footer {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .btn-accept {
+            background-color: #0275d8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-accept:hover { background-color: #025aa5; }
+        
+        @media print {
+            body { padding: 0; background: #fff; }
+            .upload-section, .page-header-nav, .quick-nav-bar, .btn-action, .top-bar, .adhoc-controls, .barred-info-box { display: none !important; }
+            .container { box-shadow: none; padding: 0; width: 100%; max-width: 100%; }
+            .table-container { max-height: none; overflow: visible; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="top-bar">
+        <button id="btnClearStorage" class="btn-action btn-clear" style="display:none;" onclick="clearSessionData()">🗑️ सेव डेटा मिटाएं</button>
+    </div>
+
+    <!-- File Upload Section -->
+    <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+        <strong style="color: #1e8449; font-size: 17px;">📂 C6Register CSV (.csv) फ़ाइल यहाँ अपलोड करें</strong>
+        <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 13px;">मास्टर C-6 रजिस्टर (Daily Rate Damages & Reg. 31A Interest Calculation) एवं नोटिस रिपोर्ट</p>
+        <input type="file" id="fileInput" accept=".csv" onchange="processCSV(this)">
+    </div>
+
+    <div id="status" class="status-message">CSV फ़ाइल पढ़ी जा रही है...</div>
+
+    <!-- Employer Information Card -->
+    <div id="employerCard" class="employer-card">
+        <h3>🏢 Employer विवरण (C-6 रजिस्टर)</h3>
+        <div class="employer-grid">
+            <div><strong>Employer Name:</strong> <span id="empName">-</span></div>
+            <div><strong>Employer Code:</strong> <span id="empCode">-</span></div>
+            <div style="grid-column: 1 / -1;"><strong>Employer Address:</strong> <span id="empAddress">-</span></div>
+        </div>
+    </div>
+
+    <!-- NOTICE PREVIEW MODAL -->
+    <div id="noticeModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 850px;">
+            <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:10px;">
+                <button class="btn-action btn-word" id="btnModalDownload">📝 Word डाउनलोड करें</button>
+                <button class="btn-action btn-clear" onclick="closeNoticePreview()">❌ बंद करें</button>
+            </div>
+            <div id="noticePreviewContainer"></div>
+        </div>
+    </div>
+
+    <!-- AUTO-SUMMARY KPI CARDS BLOCK -->
+    <div id="summaryCards" class="summary-grid" style="display: none;">
+        <div class="kpi-card shortfall">
+            <span>📉 कुल बकाया राशि (Shortfall)</span>
+            <h3 id="cardShortfall" style="color:#d35400;">₹ 0</h3>
+        </div>
+        <div class="kpi-card missing">
+            <span>⚠️ C-18 Adhoc कुल दावा (5 Yr Limit)</span>
+            <h3 id="cardMissing" style="color:#c0392b;">₹ 0</h3>
+        </div>
+        <div class="kpi-card interest">
+            <span>📈 कुल देय ब्याज (Reg. 31A @ 12%)</span>
+            <h3 id="cardInterest" style="color:#2980b9;">₹ 0</h3>
+        </div>
+        <div class="kpi-card damages">
+            <span>⚖️ कुल देय हर्जाना (Reg. 31C - Capped)</span>
+            <h3 id="cardDamages" style="color:#8e44ad;">₹ 0</h3>
+        </div>
+    </div>
+
+    <!-- Period Info -->
+    <div id="targetInfo" class="target-info-line"></div>
+
+    <!-- ONE-CLICK UNIVERSAL QUICK SWITCH NAVIGATION BAR -->
+    <div id="quickNavBar" class="quick-nav-bar" style="display: none;">
+        <button id="btnTabMaster" class="nav-tab-btn tab-master" onclick="showPage('mainC6Page')">📊 मास्टर C-6</button>
+        <button id="btnTabActual" class="nav-tab-btn tab-actual" onclick="showPage('c18ActualPage')">📑 C-18 (Actual)</button>
+        <button id="btnTabAdhoc" class="nav-tab-btn tab-adhoc" onclick="showPage('c18AdhocPage')">⚠️ C-18 (Adhoc)</button>
+        <button id="btnTabInterest" class="nav-tab-btn tab-interest" onclick="showPage('c18iPage')">📈 C-18(i) ब्याज</button>
+        <button id="btnTabDamages" class="nav-tab-btn tab-damages" onclick="showPage('d18Page')">⚖️ D-18 हर्जाना</button>
+    </div>
+
+    <!-- MAIN PAGE: C-6 REGISTER MASTER VIEW -->
+    <div id="mainC6Page" class="page-view">
+        <div class="page-header-nav" style="border-left-color: #2c3e50;">
+            <h3 style="margin:0; color:#2c3e50;">📊 मास्टर C-6 रजिस्टर (Master View)</h3>
+            <button id="btnExportAll" class="btn-action btn-excel" onclick="exportAllToExcel()">📊 सभी रिपोर्ट्स Excel में डाउनलोड करें (.xlsx)</button>
+        </div>
+
+        <div id="masterTableBox">
+            <div class="table-container">
+                <table class="report-table" id="tableMaster">
+                    <thead>
+                        <tr>
+                            <th class="header-master">S. No.</th>
+                            <th class="header-master">Month/Year</th>
+                            <th class="header-master">Contribution Amount</th>
+                            <th class="header-master">Employees</th>
+                            <th class="header-master">Paid Cont.</th>
+                            <th class="header-master">Challan Amount</th>
+                            <th class="header-master">Challan No.</th>
+                            <th class="header-master">Due Date</th>
+                            <th class="header-master">Realised Date</th>
+                            <th class="header-master">Delay Days</th>
+                            <th class="header-master">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="masterTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 2: C-18 (ACTUAL) VIEW -->
+    <div id="c18ActualPage" class="page-view">
+        <div class="page-header-nav" style="border-left-color: #d35400;">
+            <h3 style="margin:0; color:#d35400;">📑 C-18 (Actual) रिपोर्ट विवरण</h3>
+            <div>
+                <button class="btn-action btn-word" onclick="previewNotice('C18_Actual')">👁️ Notice Preview & 📝 Download</button>
+                <button class="btn-action btn-excel" onclick="exportSingleTable('tableActual', 'C18_Actual_Report')">📥 Excel</button>
+                <button class="btn-action btn-print" onclick="printReport('C18_Actual_Report')">🖨️ प्रिंट</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table class="report-table" id="tableActual">
+                <thead>
+                    <tr>
+                        <th class="header-actual">S. No.</th>
+                        <th class="header-actual">Month/Year</th>
+                        <th class="header-actual">Shortfall Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="actualTableBody"></tbody>
+                <tfoot id="actualTableFoot"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGE 3: C-18 (ADHOC) VIEW -->
+    <div id="c18AdhocPage" class="page-view">
+        <div class="page-header-nav" style="border-left-color: #c0392b;">
+            <h3 style="margin:0; color:#c0392b;">⚠️ C-18 (Adhoc) समूहित गणना (धारा 45-A)</h3>
+            <div>
+                <button class="btn-action btn-word" onclick="previewNotice('C18_Adhoc')">👁️ Notice Preview & 📝 Download</button>
+                <button class="btn-action btn-excel" onclick="exportSingleTable('tableAdhoc', 'C18_Adhoc_Consolidated_Report')">📥 Excel</button>
+                <button class="btn-action btn-print" onclick="printReport('C18_Adhoc_Consolidated_Report')">🖨️ प्रिंट</button>
+            </div>
+        </div>
+
+        <!-- Adhoc Parameters Controls -->
+        <div class="adhoc-controls">
+            <div>
+                <label>Assumed Wages (₹): </label>
+                <input type="number" id="adhocWage" value="11550" onchange="recalculateAdhocDemand()">
+            </div>
+            <div>
+                <label>Default Emp Count: </label>
+                <input type="number" id="adhocDefaultEmpCount" value="10" onchange="recalculateAdhocDemand()">
+            </div>
+            <div>
+                <label>ESIC Rate (%): </label>
+                <input type="number" id="adhocRate" value="4" step="0.25" onchange="recalculateAdhocDemand()">
+            </div>
+            <div style="font-size: 12px; color: #555; margin-left: auto;">
+                * केवल 5 वर्ष की परिसीमा के भीतर के वैध (Claimable) महीनों को समूहित करके प्रदर्शित किया गया है।
+            </div>
+        </div>
+
+        <div id="barredInfoBox" class="barred-info-box"></div>
+
+        <div id="adhocMonthwiseEditorContainer" style="margin-bottom: 20px;"></div>
+
+        <div class="table-container">
+            <table class="report-table" id="tableAdhoc">
+                <thead>
+                    <tr>
+                        <th class="header-adhoc">S.No</th>
+                        <th class="header-adhoc">Nature of Dues*</th>
+                        <th class="header-adhoc">Period* (Number of Months)</th>
+                        <th class="header-adhoc">No of Employees</th>
+                        <th class="header-adhoc">Average Wages (₹)</th>
+                        <th class="header-adhoc">Basis for Calculation <br> (4% * No of Employees * Average Wages (₹) * Number of Months) </th>
+                        <th class="header-adhoc">Amount of Contribution (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="adhocTableBody"></tbody>
+                <tfoot id="adhocTableFoot"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGE 4: C-18(i) INTEREST ONLY VIEW -->
+    <div id="c18iPage" class="page-view">
+        <div class="page-header-nav" style="border-left-color: #2980b9;">
+            <h3 style="margin:0; color:#2980b9;">📈 C-18(i) केवल ब्याज (Reg. 31A @ 12% p.a.) रिपोर्ट</h3>
+            <div>
+                <button class="btn-action btn-word" onclick="previewNotice('C18i_Interest')">👁️ Notice Preview & 📝 Download</button>
+                <button class="btn-action btn-excel" onclick="exportSingleTable('tableInterest', 'C18i_Interest_Report')">📥 Excel</button>
+                <button class="btn-action btn-print" onclick="printReport('C18i_Interest_Report')">🖨️ प्रिंट</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table class="report-table" id="tableInterest">
+                <thead>
+                    <tr>
+                        <th class="header-interest">S. No.</th>
+                        <th class="header-interest">Month/Year</th>
+                        <th class="header-interest">Challan Amount</th>
+                        <th class="header-interest">Due Date</th>
+                        <th class="header-interest">Realised Date</th>
+                        <th class="header-interest">Delay Days</th>
+                        <th class="header-interest">Interest Rate (%)</th>
+                        <th class="header-interest">Interest Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="interestTableBody"></tbody>
+                <tfoot id="interestTableFoot"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGE 5: D-18 DAMAGES ONLY VIEW -->
+    <div id="d18Page" class="page-view">
+        <div class="page-header-nav" style="border-left-color: #8e44ad;">
+            <h3 style="margin:0; color:#8e44ad;">⚖️ D-18 केवल हर्जाना (Reg. 31C Daily Rate - Capped at 100%) रिपोर्ट</h3>
+            <div>
+                <button class="btn-action btn-word" onclick="previewNotice('D18_Damages')">👁️ Notice Preview & 📝 Download</button>
+                <button class="btn-action btn-excel" onclick="exportSingleTable('tableDamages', 'D18_Damages_Report')">📥 Excel</button>
+                <button class="btn-action btn-print" onclick="printReport('D18_Damages_Report')">🖨️ प्रिंट</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table class="report-table" id="tableDamages">
+                <thead>
+                    <tr>
+                        <th class="header-damages">S. No.</th>
+                        <th class="header-damages">Month/Year</th>
+                        <th class="header-damages">Challan Amount</th>
+                        <th class="header-damages">Due Date</th>
+                        <th class="header-damages">Realised Date</th>
+                        <th class="header-damages">Delay Days</th>
+                        <th class="header-damages">Damage Rate (%)</th>
+                        <th class="header-damages">Damages Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="damagesTableBody"></tbody>
+                <tfoot id="damagesTableFoot"></tfoot>                
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Initial Warning Modal Container -->
+<div id="warningModal" class="modal-overlay" style="display: flex;">
+  <div class="modal-content">
+    <h3 class="modal-title" style="text-align: center;">⚠️ चेतावनी / Warning</h3>
+    <div class="modal-body">
+      <div class="lang-section">
+        <strong>हिंदी:</strong>
+        <p style="text-align: justify;">आगे बढ़ने से पहले, कृपया सभी इनपुट डेटा और CSV की तारीखों (Dates) को ध्यान से जाँच लें। तारीख के गलत फ़ॉर्मैट (जैसे DD/MM/YYYY की जगह MM/DD/YYYY) या चालान की जानकारी छूट जाने से ESI नियमों के तहत देय तारीखों (Due Date), हर्जाना (Damages), और ब्याज की गणना गलत हो सकती है। डेटा सही होने पर ही आगे बढ़ें।</p>
+        </div>
+      <hr class="modal-divider">
+      <div class="lang-section">
+        <strong>English:</strong>
+        <p style="text-align: justify;">Before proceeding, please verify all input data and CSV dates carefully. Incorrect date formats (like MM/DD/YYYY instead of DD/MM/YYYY) or missing challan values can lead to incorrect calculations of due dates, damages, and interest under ESI regulations. Proceed only if the data is accurate.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="acceptWarningBtn" class="btn-accept">मैं सहमत हूँ / I Understand & Agree</button>
+    </div>
+  </div>
+</div>
+
+<script>
+    const monthsName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let globalCSVText = "";
+    let processedAdhocList = []; 
+
+    window.onload = function() {
+        let savedCSV = sessionStorage.getItem("savedC6CSVData");
+        if (savedCSV) {
+            globalCSVText = savedCSV;
+            parseAndAnalyzeCSV(globalCSVText);
+            document.getElementById("btnClearStorage").style.display = "inline-block";
+        }
+
+        window.onclick = function(event) {
+            let modal = document.getElementById("noticeModal");
+            if (event.target === modal) {
+                closeNoticePreview();
+            }
+        };
+
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeNoticePreview();
+            }
+        });
+
+        if (sessionStorage.getItem("warningAccepted") === "true") {
+            document.getElementById("warningModal").style.display = "none";
+        }
+    };
+
+    function clearSessionData() {
+        sessionStorage.removeItem("savedC6CSVData");
+        location.reload();
+    }
+
+    function getFormattedTimestamp() {
+        const now = new Date();
+        const YYYY = now.getFullYear();
+        const MM = String(now.getMonth() + 1).padStart(2, '0');
+        const DD = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        return `${YYYY}-${MM}-${DD}_${hh}-${mm}-${ss}`;
+    }
+
+    function showPage(pageId) {
+        document.querySelectorAll('.page-view').forEach(page => page.style.display = 'none');
+        document.getElementById(pageId).style.display = 'block';
+
+        document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (pageId === 'mainC6Page') document.getElementById('btnTabMaster').classList.add('active');
+        else if (pageId === 'c18ActualPage') document.getElementById('btnTabActual').classList.add('active');
+        else if (pageId === 'c18AdhocPage') document.getElementById('btnTabAdhoc').classList.add('active');
+        else if (pageId === 'c18iPage') document.getElementById('btnTabInterest').classList.add('active');
+        else if (pageId === 'd18Page') document.getElementById('btnTabDamages').classList.add('active');
+    }
+
+    function parseCSVLine(line) {
+        let result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            let char = line[i];
+            if (char === '"') inQuotes = !inQuotes;
+            else if (char === ',' && !inQuotes) {
+                result.push(current.trim().replace(/^'/, ''));
+                current = '';
+            } else current += char;
+        }
+        result.push(current.trim().replace(/^'/, ''));
+        return result;
+    }
+
+    function formatDate(dateObj) {
+        if (!dateObj || isNaN(dateObj.getTime())) return '-';
+        let d = String(dateObj.getDate()).padStart(2, '0');
+        let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        let y = dateObj.getFullYear();
+        return `${d}/${m}/${y}`;
+    }
+
+    function parseToDDMMYYYY(rawDateStr) {
+        if (!rawDateStr || rawDateStr.trim() === '' || rawDateStr.trim() === '-') return '-';
+        let cleaned = rawDateStr.trim();
+
+        let dmyMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (dmyMatch) {
+            let day = String(parseInt(dmyMatch[1], 10)).padStart(2, '0');
+            let month = String(parseInt(dmyMatch[2], 10)).padStart(2, '0');
+            let year = dmyMatch[3];
+            return `${day}/${month}/${year}`;
+        }
+
+        let ymdMatch = cleaned.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+        if (ymdMatch) {
+            let year = ymdMatch[1];
+            let month = String(parseInt(ymdMatch[2], 10)).padStart(2, '0');
+            let day = String(parseInt(ymdMatch[3], 10)).padStart(2, '0');
+            return `${day}/${month}/${year}`;
+        }
+
+        let parsed = new Date(cleaned);
+        if (!isNaN(parsed.getTime())) {
+            return formatDate(parsed);
+        }
+
+        return cleaned;
+    }
+
+    function numToHindiWords(num) {
+        if (num === 0) return 'शून्य';
+
+        const hindiWords = [
+            '', 'एक', 'दो', 'तीन', 'चार', 'पांच', 'छ:', 'सात', 'आठ', 'नौ', 'दस',
+            'ग्यारह', 'बारह', 'तेरह', 'चौदह', 'पंद्रह', 'सोलह', 'सत्रह', 'अठारह', 'उन्नीस', 'बीस',
+            'इक्कीस', 'बाईस', 'तेईस', 'चौबीस', 'पच्चीस', 'छब्बीस', 'सत्ताईस', 'अट्ठाईस', 'उनतीस', 'तीस',
+            'इकतीस', 'बत्तीस', 'तैंतीस', 'चौंतीस', 'पैंतीस', 'छत्तीस', 'सैंतीस', 'अड़तीस', 'उनतालीस', 'चालीस',
+            'इकतालीस', 'बयालीस', 'तैंतालीस', 'चौंवालीस', 'पैंतालीस', 'छियालीस', 'सैंतालीस', 'अड़तालीस', 'उनचास', 'पचास',
+            'इक्‍यावन', 'बावन', 'तिरपन', 'चौवन', 'पचपन', 'छप्पन', 'सत्तावन', 'अठावन', 'उनसठ', 'साठ',
+            'इकसठ', 'बासठ', 'तिरसठ', 'चौंसठ', 'पैंसठ', 'छियासठ', 'सड़सठ', 'अड़सठ', 'उनहत्तर', 'सत्तर',
+            'इकहत्तर', 'बहत्तर', 'तिहत्तर', 'चौहत्तर', 'पचहत्तर', 'छियात्तर', 'सतहत्तर', 'अठहत्तर', 'उन्यासी', 'अस्सी',
+            'इक्यासी', 'बयासी', 'तिरासी', 'चौरासी', 'पचासी', 'छियासी', 'सत्तासी', 'अट्ठासी', 'नवासी', 'नब्बे',
+            'इक्यान्वे', 'बान्वे', 'तिरान्वे', 'चौरान्वे', 'पंचान्वे', 'छियान्वे', 'संतानवे', 'अट्ठानवे', 'निन्यानवे'
+        ];
+
+        function convertBelowThousand(n) {
+            let str = '';
+            if (n >= 100) {
+                str += hindiWords[Math.floor(n / 100)] + ' सौ ';
+                n %= 100;
+            }
+            if (n > 0) {
+                str += hindiWords[n] + ' ';
+            }
+            return str;
+        }
+
+        let words = '';
+        let crore = Math.floor(num / 10000000);
+        num %= 10000000;
+
+        let lakh = Math.floor(num / 100000);
+        num %= 100000;
+
+        let thousand = Math.floor(num / 1000);
+        num %= 1000;
+
+        if (crore > 0) words += convertBelowThousand(crore) + 'करोड़ ';
+        if (lakh > 0) words += convertBelowThousand(lakh) + 'लाख ';
+        if (thousand > 0) words += convertBelowThousand(thousand) + 'हजार ';
+        if (num > 0) words += convertBelowThousand(num);
+
+        return words.trim();
+    }
+
+    function getFormattedAmountWithWords(valueOrElementId) {
+        let rawVal = 0;
+
+        if (typeof valueOrElementId === 'number') {
+            rawVal = valueOrElementId;
+        } 
+        else if (typeof valueOrElementId === 'string') {
+            let textVal = document.getElementById(valueOrElementId)?.innerText || '0';
+            rawVal = parseFloat(textVal.replace(/[^0-9.]/g, '')) || 0;
+        }
+
+        let roundedVal = Math.round(rawVal);
+        let formattedNumber = `₹ ${roundedVal.toLocaleString('en-IN')}`;
+        let wordsInHindi = roundedVal > 0 ? `(रुपये ${numToHindiWords(roundedVal)} मात्र)` : '';
+
+        return {
+            raw: roundedVal,
+            formatted: formattedNumber,
+            words: wordsInHindi,
+            fullText: `${formattedNumber} ${wordsInHindi}`.trim()
+        };
+    }    
+
+    function getLegalHearingDate(daysToAdd = 15) {
+        let date = new Date();
+        date.setDate(date.getDate() + Number(daysToAdd));
+
+        while (isOfficeHoliday(date)) {
+            date.setDate(date.getDate() + 1);
+        }
+
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+
+        return `${day}/${month}/${year}`;
+    }
+
+    function isOfficeHoliday(date) {
+        const dayOfWeek = date.getDay();
+        const dayOfMonth = date.getDate();
+        const month = date.getMonth() + 1;
+
+        if (dayOfWeek === 0 || dayOfWeek === 6) return true;
+        if (dayOfMonth === 26 && month === 1) return true;
+        if (dayOfMonth === 15 && month === 8) return true;
+        if (dayOfMonth === 2 && month === 10) return true;
+
+        return false;
+    }
+
+    function processCSV(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const statusDiv = document.getElementById("status");
+        statusDiv.style.display = "block";
+        statusDiv.innerText = `⏳ CSV फ़ाइल पढ़ी जा रही है...`;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            globalCSVText = e.target.result;
+
+            if (parseAndAnalyzeCSV(globalCSVText)) {
+                sessionStorage.setItem("savedC6CSVData", globalCSVText);
+                document.getElementById("btnClearStorage").style.display = "inline-block";
+            } else {
+                input.value = "";
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function parseAndAnalyzeCSV(text) {
+        const statusDiv = document.getElementById("status");
+
+        if (!text || text.trim() === "") {
+            alert("⚠️ त्रुटि: अपलोड की गई CSV फ़ाइल पूरी तरह से खाली (Empty) है। कृपया सही C-6 फ़ाइल अपलोड करें।");
+            statusDiv.style.display = "none";
+            return false;
+        }
+
+        if (!text.includes("Section: Contribution") && !text.includes("ContributionAmount")) {
+            alert("❌ अमान्य फ़ाइल प्रारूप (Invalid CSV Format)!\n\nयह C-6 रजिस्टर की CSV फ़ाइल नहीं है। कृपया ESIC पोर्टल से डाउनलोड की गई सही C-6 Register CSV फ़ाइल ही अपलोड करें।");
+            statusDiv.style.display = "none";
+            return false;
+        }
+
+        const lines = text.split(/\r?\n/);
+        let empAddress = "N/A", empCode = "N/A", empName = "N/A";
+        let dateRangeText = "";
+        let contributionData = [];
+        let currentSection = "";
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) continue;
+
+            if (line.startsWith("From:")) dateRangeText = line;
+            else if (line.startsWith("Section: Address")) currentSection = "Address";
+            else if (line.startsWith("Section: Contribution")) currentSection = "Contribution";
+            else if (currentSection === "Address" && !line.includes("employeraddress")) {
+                let row = parseCSVLine(line);
+                if (row.length >= 3) {
+                    empAddress = row[0] || "N/A";
+                    empCode = row[1] || "N/A";
+                    empName = row[2] || "N/A";
+                }
+            } else if (currentSection === "Contribution" && !line.includes("ContributionAmount")) {
+                let row = parseCSVLine(line);
+                if (row.length >= 9 && !isNaN(parseInt(row[0]))) {
+                    contributionData.push({
+                        month: parseInt(row[0], 10),
+                        year: parseInt(row[1], 10),
+                        amount: parseFloat(row[2]) || 0,
+                        employees: parseInt(row[3], 10) || 0,
+                        paid: parseFloat(row[4]) || 0,
+                        challanAmount: parseFloat(row[5]) || 0,
+                        challanNo: row[6] || '-',
+                        createdDate: row[7] || '-',
+                        realisedDate: row[8] ? row[8].trim() : '-'
+                    });
+                }
+            }
+        }
+
+        if (contributionData.length === 0) {
+            alert("⚠️ फ़ाइल में कोई भी अंशदान (Contribution) डेटा नहीं मिला। कृपया सही फ़ाइल की जाँच करें।");
+            statusDiv.style.display = "none";
+            return false;
+        }
+
+        document.getElementById("empCode").innerText = empCode;
+        document.getElementById("empName").innerText = empName;
+        document.getElementById("empAddress").innerText = empAddress;
+        document.getElementById("employerCard").style.display = "block";
+
+        let startYear = 2019, startMonth = 0, endYear = 2026, endMonth = 5;
+        const matchRange = dateRangeText.match(/From\s*:\s*(\d{2})\/(\d{2})\/(\d{4})\s*To\s*:\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+        if (matchRange) {
+            startMonth = parseInt(matchRange[2], 10) - 1;
+            startYear = parseInt(matchRange[3], 10);
+            endMonth = parseInt(matchRange[5], 10) - 1;
+            endYear = parseInt(matchRange[6], 10);
+        }
+
+        let expectedMonths = [];
+        let loopDate = new Date(startYear, startMonth, 1);
+        let endDate = new Date(endYear, endMonth, 1);
+
+        while (loopDate <= endDate) {
+            expectedMonths.push({
+                mNum: loopDate.getMonth() + 1,
+                yNum: loopDate.getFullYear(),
+                label: `${monthsName[loopDate.getMonth()]} ${loopDate.getFullYear()}`
+            });
+            loopDate.setMonth(loopDate.getMonth() + 1);
+        }
+
+        document.getElementById("targetInfo").innerText = `C-6 रजिस्टर अवधि: ${monthsName[startMonth]} ${startYear} से ${monthsName[endMonth]} ${endYear} तक (कुल ${expectedMonths.length} माह)`;
+        document.getElementById("targetInfo").style.display = "block";
+
+        let masterHTML = "", actualHTML = "", interestHTML = "", damagesHTML = "";
+        let masterCount = 0, actualCount = 0, interestCount = 0, damagesCount = 0;
+
+        let grandTotalShortfall = 0;
+        let grandTotalInterest = 0;
+        let grandTotalDamages = 0;
+
+        let lastKnownEmployees = 0;
+        processedAdhocList = [];
+
+        const today = new Date();
+        const cutoff5Years = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+
+        expectedMonths.forEach((target) => {
+            let matches = contributionData.filter(d => d.month === target.mNum && d.year === target.yNum);
+
+            let dueDate;
+            if (target.yNum < 2017 || (target.yNum === 2017 && target.mNum < 6)) {
+                dueDate = new Date(target.yNum, target.mNum, 21);
+            } else {
+                dueDate = new Date(target.yNum, target.mNum, 15);
+            }
+
+            if (matches.length === 0) {
+                masterCount++;
+
+                masterHTML += `<tr>
+                    <td>${masterCount}</td>
+                    <td><strong>${target.label}</strong></td>
+                    <td>0.00</td>
+                    <td>0</td>
+                    <td>0.00</td>
+                    <td>0.00</td>
+                    <td>-</td>
+                    <td>${formatDate(dueDate)}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td><span style="color:red; font-weight:bold;">Missing</span></td>
+                </tr>`;
+
+                processedAdhocList.push({
+                    label: target.label,
+                    dueDate: dueDate,
+                    logicalEmployees: lastKnownEmployees,
+                    isWithin5Years: dueDate >= cutoff5Years
+                });
+
+            } else {
+                let firstItem = matches[0];
+                let monthDiff = firstItem.amount - firstItem.paid;
+
+                if (Math.abs(monthDiff) > 0.01) {
+                    actualCount++;
+                    grandTotalShortfall += monthDiff;
+                    actualHTML += `<tr>
+                        <td>${actualCount}</td>
+                        <td><strong>${target.label}</strong></td>
+                        <td style="color:red; font-weight:bold;">${monthDiff.toFixed(2)}</td>
+                    </tr>`;
+                }
+
+                matches.forEach((item) => {
+                    masterCount++;
+                    let totalAmount = item.amount;
+                    let totalPaid = item.paid;
+                    let challanAmt = item.challanAmount;
+                    let employees = item.employees;
+                    let diff = totalAmount - totalPaid;
+
+                    if (employees > 0) {
+                        lastKnownEmployees = employees;
+                    }
+
+                    let rawRealisedDate = item.realisedDate;
+                    let formattedRealisedDate = parseToDDMMYYYY(rawRealisedDate);
+                    let realDateObj = null;
+
+                    if (rawRealisedDate && rawRealisedDate !== '-') {
+                        let parts = rawRealisedDate.split(/[\/\-]/);
+                        if (parts.length === 3) {
+                            let day = parseInt(parts[0], 10);
+                            let month = parseInt(parts[1], 10) - 1;
+                            let year = parseInt(parts[2], 10);
+
+                            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                                realDateObj = new Date(year, month, day);
+                            }
+                        }
+                    
+                        if (!realDateObj || isNaN(realDateObj.getTime())) {
+                            realDateObj = new Date(rawRealisedDate);
+                        }
+                    }
+
+                    let delayDays = 0;
+                    if (realDateObj && !isNaN(realDateObj.getTime())) {
+                        let diffTime = realDateObj.getTime() - dueDate.getTime();
+                        if (diffTime > 0) {
+                            delayDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+                        }
+                    }
+
+                    let displayLabel = target.label;
+
+                    masterHTML += `<tr>
+                        <td>${masterCount}</td>
+                        <td><strong>${displayLabel}</strong></td>
+                        <td>${totalAmount.toFixed(2)}</td>
+                        <td>${employees}</td>
+                        <td>${totalPaid.toFixed(2)}</td>
+                        <td>${challanAmt.toFixed(2)}</td>
+                        <td style="font-size:11px; font-weight:bold;">${item.challanNo}</td>
+                        <td>${formatDate(dueDate)}</td>
+                        <td>${formattedRealisedDate}</td>
+                        <td>${delayDays > 0 ? delayDays : (realDateObj ? '0' : '-')}</td>
+                        <td><span style="color:${delayDays > 0 || diff > 0 ? 'orange':'green'}; font-weight:bold;">${delayDays > 0 ? 'Delayed' : 'OK'}</span></td>
+                    </tr>`;
+
+                    if (challanAmt > 0 && delayDays > 0 && realDateObj) {
+                        interestCount++;
+                        let monthInterestExact = (challanAmt * 12 * delayDays) / (100 * 365);
+                        let monthInterestRounded = Math.round(monthInterestExact);
+                        grandTotalInterest += monthInterestRounded;
+
+                        interestHTML += `<tr>
+                            <td>${interestCount}</td>
+                            <td><strong>${displayLabel}</strong></td>
+                            <td style="color:green; font-weight:bold;">${challanAmt.toFixed(2)}</td>
+                            <td>${formatDate(dueDate)}</td>
+                            <td>${formattedRealisedDate}</td>
+                            <td style="color:red;">${delayDays}</td>
+                            <td style="font-weight:bold; color:#1b4f72;">12%</td>
+                            <td style="font-weight:bold; color:#2980b9;">${monthInterestRounded}</td>
+                        </tr>`;
+
+                        damagesCount++;
+
+                        let damageRate = 0;
+                        if (delayDays <= 60) {
+                            damageRate = 5;
+                        } else if (delayDays <= 120) {
+                            damageRate = 10;
+                        } else if (delayDays <= 180) {
+                            damageRate = 15;
+                        } else {
+                            damageRate = 25;
+                        }
+
+                        let monthDamagesExact = (challanAmt * damageRate * delayDays) / (100 * 365);
+                        let monthDamagesRounded = Math.round(monthDamagesExact);
+
+                        let isCapped = false;
+                        if (monthDamagesRounded > challanAmt) {
+                            monthDamagesRounded = challanAmt;
+                            isCapped = true;
+                        }
+
+                        grandTotalDamages += monthDamagesRounded;
+
+                        damagesHTML += `<tr>
+                            <td>${damagesCount}</td>
+                            <td><strong>${displayLabel}</strong></td>
+                            <td style="color:green; font-weight:bold;">${challanAmt.toFixed(2)}</td>
+                            <td>${formatDate(dueDate)}</td>
+                            <td>${formattedRealisedDate}</td>
+                            <td>${delayDays}</td>
+                            <td style="color:#8e44ad; font-weight:bold;">${damageRate}%</td>
+                            <td style="font-weight:bold; color:#8e44ad;">
+                                ${monthDamagesRounded} ${isCapped ? '<span style="color:red; font-size:11px;" title="Capped at 100% of Challan Amount">(Capped)</span>' : ''}
+                            </td>
+                        </tr>`;
+                    }
+                });
+            }
+        });
+
+        statusDiv.style.display = "none";
+
+        document.getElementById("cardShortfall").innerText = `₹ ${Math.round(grandTotalShortfall).toLocaleString('en-IN')}`;
+        document.getElementById("cardInterest").innerText = `₹ ${grandTotalInterest.toLocaleString('en-IN')}`;
+        document.getElementById("cardDamages").innerText = `₹ ${grandTotalDamages.toLocaleString('en-IN')}`;
+
+        document.getElementById("masterTableBody").innerHTML = masterHTML;
+        document.getElementById("actualTableBody").innerHTML = actualHTML || `<tr><td colspan="3">कोई बकाया अंतर नहीं मिला।</td></tr>`;
+
+        document.getElementById("actualTableFoot").innerHTML = actualCount > 0 ? `
+        <tr style="font-weight:bold; background-color:#f2f2f2;">
+            <td colspan="2" style="text-align:right;">Total (₹):</td>
+            <td style="color:red;">${grandTotalShortfall.toFixed(2)}</td>
+        </tr>` : "";
+
+        document.getElementById("interestTableBody").innerHTML = interestHTML || `<tr><td colspan="8">कोई विलंबित भुगतान नहीं मिला।</td></tr>`;
+        document.getElementById("interestTableFoot").innerHTML = interestCount > 0 ? `
+        <tr style="font-weight:bold; background-color:#f2f2f2;">
+            <td colspan="7" style="text-align:right;">Total Interest (₹):</td>
+            <td style="color:#2980b9;">${grandTotalInterest.toLocaleString('en-IN')}</td>
+        </tr>` : "";
+
+        document.getElementById("damagesTableBody").innerHTML = damagesHTML || `<tr><td colspan="8">कोई विलंबित भुगतान नहीं मिला।</td></tr>`;
+        document.getElementById("damagesTableFoot").innerHTML = damagesCount > 0 ? `
+        <tr style="font-weight:bold; background-color:#f2f2f2;">
+            <td colspan="7" style="text-align:right;">Total Damages (₹):</td>
+            <td style="color:#8e44ad;">${grandTotalDamages.toLocaleString('en-IN')}</td>
+        </tr>` : "";
+
+        recalculateAdhoc();
+
+        document.getElementById("summaryCards").style.display = "grid";
+        document.getElementById("quickNavBar").style.display = "flex";
+
+        showPage('mainC6Page');
+        return true;
+    }
+
+    let adhocMonthsData = [];
+    
+    function getLastKnownEmpCount(targetMonthStr, c6DataArray) {
+        let defaultFallback = parseInt(document.getElementById("adhocDefaultEmpCount")?.value) || 10;
+        if (!c6DataArray || c6DataArray.length === 0) return defaultFallback;
+    
+        for (let i = c6DataArray.length - 1; i >= 0; i--) {
+            if (c6DataArray[i].empCount && c6DataArray[i].empCount > 0) {
+                return c6DataArray[i].empCount;
+            }
+        }
+    
+        return defaultFallback;
+    }
+    
+    function initAdhocMonthEditor(missingMonthsList, c6DataArray) {
+        let defaultFallback = parseInt(document.getElementById("adhocDefaultEmpCount")?.value) || 10;
+        
+        adhocMonthsData = missingMonthsList.map(item => {
+            let monthStr = typeof item === 'object' ? item.label : item;
+            let isWithin5Years = typeof item === 'object' ? item.isWithin5Years : true;
+        
+            let autoCount = getLastKnownEmpCount(monthStr, c6DataArray);
+        
+            return {
+                month: monthStr,
+                isWithin5Years: isWithin5Years,
+                empCount: autoCount
+            };
+        });
+    
+        renderAdhocMonthWiseEditor();
+        recalculateAdhoc();
+    }
+    
+    function renderAdhocMonthWiseEditor() {
+        let container = document.getElementById("adhocMonthwiseEditorContainer");
+        if (!container) return;
+    
+        let defaultWage = parseFloat(document.getElementById("adhocWage").value) || 11550;
+        let defaultRate = parseFloat(document.getElementById("adhocRate").value) || 4.0;
+    
+        let html = `
+            <h4 style="margin-top:15px; color:#c0392b;">प्रति माह कर्मचारी संख्या संशोधन (Month-wise Customization):</h4>
+            <table border="1" style="width:100%; border-collapse:collapse; margin-bottom:15px; text-align:center;">
+                <thead style="background:#e9ecef;">
+                    <tr>
+                        <th>माह (Month)</th>
+                        <th>कर्मचारी संख्या (Emp Count)</th>
+                        <th>अनुमानित मजदूरी (Assumed Wages ₹)</th>
+                        <th>अनुमानित अंशदान (Adhoc Demand @ ${defaultRate}%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+                
+        adhocMonthsData.forEach((item, index) => {
+            if (item.isWithin5Years) {
+                let monthWages = item.empCount * defaultWage;
+                let monthDemand = Math.round((monthWages * defaultRate) / 100);
+            
+                html += `
+                    <tr>
+                        <td><b>${item.month}</b></td>
+                        <td>
+                            <input type="number" min="0" value="${item.empCount}" 
+                                style="width: 75px; text-align: center;" 
+                                onchange="updateSingleMonthEmpCount(${index}, this.value)">
+                        </td>
+                        <td>₹ ${monthWages.toLocaleString('en-IN')}</td>
+                        <td><b>₹ ${monthDemand.toLocaleString('en-IN')}</b></td>
+                    </tr>
+                `;
+            }
+        });
+    
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+    
+    function updateSingleMonthEmpCount(index, newCount) {
+        let count = parseInt(newCount);
+        if (isNaN(count) || count < 0) count = 0;
+    
+        adhocMonthsData[index].empCount = count;
+        
+        renderAdhocMonthWiseEditor();
+        recalculateAdhoc();
+    }
+    
+    function recalculateAdhoc() {
+        let defaultWage = parseFloat(document.getElementById("adhocWage").value) || 11550;
+        let defaultRate = parseFloat(document.getElementById("adhocRate").value) || 4.0;
+        let defaultEmp = parseInt(document.getElementById("adhocDefaultEmpCount")?.value) || 10;
+    
+        let claimableList = [];
+        let barredCount = 0;
+    
+        if (adhocMonthsData.length > 0) {
+            adhocMonthsData.forEach((item) => {
+                if (item.isWithin5Years) {
+                    claimableList.push({
+                        label: item.month,
+                        logicalEmployees: item.empCount,
+                        wage: defaultWage,
+                        rate: defaultRate
+                    });
+                } else {
+                    barredCount++;
+                }
+            });
+        } else if (typeof processedAdhocList !== 'undefined') {
+            processedAdhocList.forEach((item) => {
+                if (item.isWithin5Years) {
+                    claimableList.push({
+                        label: item.label,
+                        logicalEmployees: defaultEmp,
+                        wage: defaultWage,
+                        rate: defaultRate
+                    });
+                } else {
+                    barredCount++;
+                }
+            });
+        }
+    
+        let groupedData = {};
+    
+        claimableList.forEach((item) => {
+            let key = `${item.logicalEmployees}_${item.wage}_${item.rate}`;
+            if (!groupedData[key]) {
+                groupedData[key] = {
+                    empCount: item.logicalEmployees,
+                    wage: item.wage,
+                    rate: item.rate,
+                    monthCount: 0
+                };
+            }
+            groupedData[key].monthCount += 1;
+        });
+    
+        let adhocHTML = "";
+        let adhocCount = 0;
+        let grandTotalAdhoc = 0;
+    
+        for (let key in groupedData) {
+            adhocCount++;
+            let group = groupedData[key];
+        
+            let rowAmount = Math.round((group.rate / 100) * group.empCount * group.wage * group.monthCount);
+            grandTotalAdhoc += rowAmount;
+        
+            let formulaText = `${group.rate.toFixed(1)}% * ${group.empCount} * ${group.wage} * ${group.monthCount}`;
+        
+            adhocHTML += `<tr>
+                <td>${adhocCount}.</td>
+                <td>Defaulter</td>
+                <td style="font-weight:bold;">${group.monthCount}</td>
+                <td>${group.empCount}</td>
+                <td>${group.wage}</td>
+                <td>${formulaText}</td>
+                <td style="font-weight:bold; color:#c0392b;">${rowAmount}</td>
+            </tr>`;
+        }
+    
+        if (adhocCount === 0) {
+            document.getElementById("adhocTableBody").innerHTML = `<tr><td colspan="7" style="text-align:center; color:green; font-weight:bold;">🎉 5 वर्षों की सीमा के भीतर कोई भी छूटा हुआ (Missing) महीना नहीं मिला।</td></tr>`;
+            document.getElementById("adhocTableFoot").innerHTML = "";
+        } else {
+            document.getElementById("adhocTableBody").innerHTML = adhocHTML;
+        
+            document.getElementById("adhocTableFoot").innerHTML = `
+                <tr style="font-weight:bold; background-color:#f2f2f2;">
+                    <td colspan="6" style="text-align:right;">Total (₹):</td>
+                    <td style="color:#c0392b;">${grandTotalAdhoc}</td>
+                </tr>
+            `;
+        }
+    
+        if (document.getElementById("cardMissing")) {
+            document.getElementById("cardMissing").innerText = `₹ ${grandTotalAdhoc.toLocaleString('en-IN')}`;
+        }
+    
+        let barredBox = document.getElementById("barredInfoBox");
+        if (barredBox) {
+            if (barredCount > 0) {
+                barredBox.innerText = `ℹ️ सूचना: 5 वर्ष (60 माह) की कानूनी परिसीमा से पुराने ${barredCount} छूटे हुए महीने नोटिस एवं तालिका से स्वतः हटा दिए गए हैं।`;
+                barredBox.style.display = "block";
+            } else {
+                barredBox.style.display = "none";
+            }
+        }
+    }
+    
+    function recalculateAdhocDemand() {
+        let defaultEmp = parseInt(document.getElementById("adhocDefaultEmpCount")?.value) || 10;
+    
+        adhocMonthsData.forEach(item => {
+            item.empCount = defaultEmp;
+        });
+    
+        renderAdhocMonthWiseEditor();
+        recalculateAdhoc();
+    }
+    
+    function checkXLSXAvailability() {
+        if (typeof XLSX === 'undefined') {
+            alert(
+                "⚠️ इंटरनेट कनेक्शन उपलब्ध नहीं है या SheetJS (XLSX) लाइब्रेरी लोड नहीं हो सकी!\n\n" +
+                "💡 समाधान:\n" +
+                "1. इंटरनेट चालू करें और पेज को रिफ्रेश करें, या\n" +
+                "2. 'xlsx.full.min.js' फ़ाइल को डाउनलोड करके अपने HTML टूल वाले फोल्डर में रखें।"
+            );
+            return false;
+        }
+        return true;
+    }
+
+    function convertTableToSheetAsText(table) {
+        let ws = XLSX.utils.table_to_sheet(table, { raw: true });
+        for (let cell in ws) {
+            if (cell[0] === '!') continue;
+            let val = ws[cell].v;
+            if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(val.trim())) {
+                ws[cell].t = 's';
+                ws[cell].v = val.trim();
+                delete ws[cell].w;
+                delete ws[cell].z;
+            }
+        }
+        return ws;
+    }
+
+    function exportSingleTable(tableId, reportPrefix) {
+        if (!checkXLSXAvailability()) return;
+
+        let empCode = document.getElementById("empCode").innerText || "Employer";
+        let timestamp = getFormattedTimestamp();
+        let fileName = `${reportPrefix}_${empCode}_${timestamp}.xlsx`;
+
+        let table = document.getElementById(tableId);
+        let ws = convertTableToSheetAsText(table);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Report");
+        XLSX.writeFile(wb, fileName);
+    }
+
+    function exportAllToExcel() {
+        if (!checkXLSXAvailability()) return;
+
+        let empCode = document.getElementById("empCode").innerText || "Employer";
+        let timestamp = getFormattedTimestamp();
+        let fileName = `ESIC_C6_Master_Report_${empCode}_${timestamp}.xlsx`;
+
+        let wb = XLSX.utils.book_new();
+
+        let masterTbl = document.getElementById("tableMaster");
+        let actualTbl = document.getElementById("tableActual");
+        let adhocTbl = document.getElementById("tableAdhoc");
+        let interestTbl = document.getElementById("tableInterest");
+        let damagesTbl = document.getElementById("tableDamages");
+
+        if (masterTbl) XLSX.utils.book_append_sheet(wb, convertTableToSheetAsText(masterTbl), "Master C6");
+        if (actualTbl) XLSX.utils.book_append_sheet(wb, convertTableToSheetAsText(actualTbl), "C-18 Actual");
+        if (adhocTbl) XLSX.utils.book_append_sheet(wb, convertTableToSheetAsText(adhocTbl), "C-18 Adhoc");
+        if (interestTbl) XLSX.utils.book_append_sheet(wb, convertTableToSheetAsText(interestTbl), "C-18(i) Interest");
+        if (damagesTbl) XLSX.utils.book_append_sheet(wb, convertTableToSheetAsText(damagesTbl), "D-18 Damages");
+
+        XLSX.writeFile(wb, fileName);
+    }
+
+    function downloadNoticeWord(noticeType) {
+        let empCode = document.getElementById("empCode")?.innerText || "Employer";
+        let timestamp = typeof getFormattedTimestamp === 'function' ? getFormattedTimestamp() : new Date().getTime();
+
+        let noticeHTMLContent = generateNoticeHTML(noticeType);
+
+        const docContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <style>
+                    @page Section1 {
+                        size: 8.27in 11.69in;
+                        margin: 0.5in 0.5in 0.5in 0.5in;
+                        mso-header-margin: 0.5in;
+                        mso-footer-margin: 0.5in;
+                    }
+                    div.Section1 { page: Section1; }
+                    img { max-width: 50% !important; height: auto !important; display: block; margin: 0 auto; }
+                    table { width: 100% !important; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px; }
+                    table, th, td { border: 1px solid black; padding: 6px; font-size: 10pt; }
+                    th { background-color: #f2f2f2; font-weight: bold; }
+                    td { mso-number-format: "\\@"; }
+                </style>
+            </head>
+            <body>
+                <div class="Section1">
+                    ${noticeHTMLContent}
+                </div>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob(['\ufeff', docContent], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${noticeType}_Notice_${empCode}_${timestamp}.doc`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (typeof closeNoticePreview === 'function') {
+            closeNoticePreview();
+        }
+    }
+
+    function generateNoticeHTML(noticeType) {
+        let empName = document.getElementById("empName")?.innerText || '[Employer Name]';
+        let empCode = document.getElementById("empCode")?.innerText || '[Employer Code]';
+        let empAddress = document.getElementById("empAddress")?.innerText || '[Employer Address]';
+        let totalShortfallCard = document.getElementById("cardShortfall")?.innerText || '₹ 0.00';
+        let totalAdhocDemand = document.getElementById("cardMissing")?.innerText || '₹ 0.00';
+        let totalInterest = document.getElementById("cardInterest")?.innerText || '₹ 0.00';
+        let totalDamages = document.getElementById("cardDamages")?.innerText || '₹ 0.00';
+        let periodText = document.getElementById("targetInfo")?.innerText || '__________';
+        let hearingDate = typeof getLegalHearingDate === 'function' ? getLegalHearingDate(21) : '_____________';
+        let noticeDate = new Date().toLocaleDateString('en-IN');
+        
+        let headerHTML = "";
+        if (typeof ESIC_HEADER_BASE64 !== 'undefined' && ESIC_HEADER_BASE64) {
+            headerHTML = `
+                <div style="text-align: center; margin-bottom: 15px; width: 100%;">
+                    <img src="${ESIC_HEADER_BASE64}" 
+                         alt="ESIC Header" 
+                         width="700" 
+                         style="width: 18.5cm; max-width: 100%; height: auto; display: block; margin: 0 auto;">
+                </div>`;
+        } else {
+            headerHTML = `
+                <div style="text-align: center; margin-bottom: 15px; font-weight: bold; font-family: 'Times New Roman', serif;">
+                    <h2 style="margin: 0; font-size: 18px; color:#1b4f72;">कर्मचारी राज्य बीमा निगम</h2>
+                    <h3 style="margin: 5px 0 15px 0; font-size: 14px; color:#333;">EMPLOYEES' STATE INSURANCE CORPORATION</h3>
+                    <hr style="border: 0; border-top: 2px solid #1b4f72; margin-bottom: 15px;">
+                </div>`;
+        }
+
+        function buildTableHTML(tableId) {
+            let tableObj = document.getElementById(tableId);
+            if (!tableObj) return `<table style="width:100%; border-collapse:collapse;" border="1"><tr><td style="padding:8px; text-align:center;">विवरण उपलब्ध नहीं है।</td></tr></table>`;
+            let tableHTML = tableObj.outerHTML;
+            return tableHTML.replace(/<table[^>]*>/i, '<table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:11pt; font-family:\'Times New Roman\', serif;" border="1" cellPadding="6"');
+        }
+
+        if (noticeType === 'C18_Actual') {
+            let tableObj = document.getElementById("tableActual");
+            let tableRowsHTML = "";
+            let calculatedTotal = 0;
+
+            if (tableObj && tableObj.querySelector("tbody")) {
+                let rows = tableObj.querySelectorAll("tbody tr");
+                rows.forEach((row, idx) => {
+                    let cols = row.querySelectorAll("td");
+                    if (cols.length >= 3) {
+                        let period = cols[1].innerText.trim();
+                        let shortfallStr = cols[2].innerText.replace(/[^0-9.]/g, '') || '0';
+                        let shortfallVal = parseFloat(shortfallStr) || 0;
+                        calculatedTotal += shortfallVal;
+                        tableRowsHTML += `
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">${idx + 1}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">${period}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: right; color: #c0392b; font-weight: bold;"> ${shortfallVal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            </tr>`;
+                    }
+                });
+            }
+            if (!tableRowsHTML) {
+                tableRowsHTML = `<tr><td style="border: 1px solid #000; padding: 6px; text-align: center;">1</td><td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 6px; text-align: right;">₹ 0.00</td></tr>`;
+            }
+            let formattedTotal = calculatedTotal > 0 
+                ? ` ${calculatedTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                : totalShortfallCard;
+
+            return `
+                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18(Actual), Speed Post/e-mail</div>
+   
+                <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; padding: 0; max-width: 7.2in; width: 100%; margin: auto;">    
+                    ${headerHTML}
+                    
+                    <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
+                        <tr style="border: none !important;">
+                            <td style="text-align: left; border: none !important; padding: 0;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: right; border: none !important; padding: 0;">दिनांक: ${noticeDate}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 20px;">
+                        <strong>सेवा में,</strong><br>
+                        <strong>M/s. ${empName}</strong><br>
+                        ${empAddress}<br><br>
+                        <strong>श्री/श्रीमति. ________________</strong><br>
+                        <strong>Add: _____________________</strong>
+                    </div>
+
+                    <p style="text-align: left; font-weight: bold; margin-bottom: 10px;">महोदय,</p>
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        आपको सूचित किया जाता है कि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 29 के साथ पठित धारा 31 [पूर्व में क.रा.बी. अधिनियम, 1948 की धारा 39 के साथ पठित धारा 40]</b> के अधीन, अधिनियम के अधीन व्याप्त किसी कारखाने/स्थापना के प्रधान नियोक्ता द्वारा नियम 51 में विनिर्दिष्ट दरों पर अंशदान का भुगतान किया जाना अपेक्षित है...
+                    </p>
+
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;">
+                        <thead>
+                            <tr style="background-color: #f2f2f2;">
+                                <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 12%;">स.क्र.</th>
+                                <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 50%;">अवधि (माह/वर्ष)</th>
+                                <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 38%;">चूक राशि (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRowsHTML}</tbody>
+                        <tfoot>
+                            <tr style="background-color: #f9f9f9; font-weight: bold;">
+                                <td colspan="2" style="border: 1px solid #000; padding: 6px; text-align: right;">कुल</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: right; color: #c0392b;">${formattedTotal}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <p style="text-align: justify; margin-bottom: 10px;">1. कृपया ध्यान दें कि अधिनियम के अधीन देय किसी भी प्रकार का अंशदान <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 129 से 132 (पूर्व में क.रा.बी. अधिनियम की धारा 45ग से 45झ)</b> के अधीन वसूल किया जा सकता है।</p>
+                    <p style="text-align: justify; margin-bottom: 10px;">2. क.रा.बी. (साधारण) विनियम, 1950 के विनियम 31 के अनुसार अंशदान भुगतान में विलम्ब के लिए <b>धारा 127 [पूर्व में धारा 39(5)]</b> के अधीन 12% प्रतिवर्ष की दर से ब्याज देय है।</p>
+                    <p style="text-align: justify; margin-bottom: 25px;">3. यदि अद्यतन बकाया अंशदान 30 दिन के भीतर भुगतान नहीं किया जाता तो निगम वसूली हेतु बाध्य होगा।</p>
+
+                    <div style="margin-top: 30px; text-align: right;">
+                        <strong>भवदीय</strong><br><br><br>
+                        <strong>(______________)</strong><br>
+                        उप निदेशक
+                    </div>
+                </div>`;
+        }
+
+        if (noticeType === 'C18_Adhoc') {
+            return `
+                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18 (Adhoc), Speed Post/e-mail</div>
+
+                <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
+                    ${headerHTML}
+
+                    <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
+                        <tr style="border: none !important;">
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 20px;">
+                        <strong>सेवा में,</strong><br>
+                        <strong>M/s. ${empName}</strong><br>
+                        ${empAddress}<br>
+                    </div>
+
+                    <p style="text-align: justify; font-weight: bold; text-decoration: underline; margin-bottom: 15px;">
+                        विषय: सामाजिक सुरक्षा संहिता, 2020 की धारा 125 [पूर्व में क.रा.बी. अधिनियम, 1948 की धारा 45-क] के तहत अंशदान के निर्धारण हेतु कारण बताओ नोटिस (Ad-hoc)।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        आपको सूचित किया जाता है कि अवधि <b>${periodText}</b> के लिए आपकी स्थापना द्वारा निर्धारित अंशदान का भुगतान नहीं किया गया है एवं रिकॉर्ड प्रस्तुत नहीं किए गए हैं।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        अतः उपलब्ध तथ्यों के आधार पर आपकी देयता का तदर्थ (Ad-hoc) निर्धारण कुल राशि <b>${totalAdhocDemand}</b> प्रस्तावित किया जाता है।
+                    </p>
+
+                    <div style="margin: 15px 0;">${buildTableHTML('tableAdhoc')}</div>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        यदि आपको उक्त निर्धारण से आपत्ति है, तो आपको दिनांक <b>${hearingDate}</b> को व्यक्तिगत सुनवाई (Personal Hearing) का अवसर प्रदान किया जाता है।
+                    </p>
+
+                    <div style="margin-top: 40px; text-align: right;">
+                        <strong>भवदीय</strong><br><br><br>
+                        <strong>(____________)</strong><br>
+                        उप निदेशक
+                    </div>
+                </div>`;
+        }
+
+        if (noticeType === 'C18i_Interest' || noticeType === 'Interest_Notice') {
+            let interestData = getFormattedAmountWithWords("cardInterest");
+            
+            return `
+                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Interest Notice, Speed Post/e-mail</div>
+
+                <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
+                    ${headerHTML}
+
+                    <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
+                        <tr style="border: none !important;">
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 20px;">
+                        <strong>सेवा में,</strong><br>
+                        <strong>M/s. ${empName}</strong><br>
+                        ${empAddress}<br>
+                    </div>
+
+                    <p style="text-align: justify; font-weight: bold; text-decoration: underline; margin-bottom: 15px;">
+                        विषय: विनियम 31-क / सामाजिक सुरक्षा संहिता की धारा 127 के अंतर्गत विलंबित अंशदान भुगतान पर ब्याज की मांग।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        क.रा.बी. (साधारण) विनियम, 1950 के विनियम 31-क के अनुसार अंशदान का समय पर भुगतान न करने के कारण, देय तिथियों से वास्तविक भुगतान की तिथि तक 12% प्रति वर्ष की दर से ब्याज देय है।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        आपकी स्थापना द्वारा विलंब से जमा अंशदान पर कुल ब्याज की गणना <b>${interestData.formatted} ${interestData.words}</b> की गई है (अवधि: ${periodText})।
+                    </p>
+
+                    <div style="margin: 15px 0;">${buildTableHTML('tableInterest')}</div>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        अतः आपको निर्देशित किया जाता है कि उक्त ब्याज राशि 15 दिवस के भीतर ऑनलाइन चालान के माध्यम से जमा कर इस कार्यालय को सूचित करें।
+                    </p>
+
+                    <div style="margin-top: 40px; text-align: right;">
+                        <strong>भवदीय</strong><br><br><br>
+                        <strong>(_____________)</strong><br>
+                        उप निदेशक
+                    </div>
+                </div>`;
+        }
+
+        if (noticeType === 'D18_Damages' || noticeType === 'Damages_Notice') {
+            let damagesData = getFormattedAmountWithWords("cardDamages");
+            return `
+                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">D-18 (Damages Notice), Speed Post/e-mail</div>
+
+                <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
+                    ${headerHTML}
+
+                    <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
+                        <tr style="border: none !important;">
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 20px;">
+                        <strong>सेवा में,</strong><br>
+                        <strong>M/s. ${empName}</strong><br>
+                        ${empAddress}<br>
+                    </div>
+
+                    <p style="text-align: justify; font-weight: bold; text-decoration: underline; margin-bottom: 15px;">
+                        विषय: विनियम 31-ग सहपठित सामाजिक सुरक्षा संहिता, 2020 की धारा 128 [पूर्व में धारा 85-ख] के तहत हर्जाना (Damages) अधिरोपित करने हेतु कारण बताओ नोटिस (फॉर्म D-18)।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        जबकि आपकी स्थापना M/s. ${empName} पर सामाजिक सुरक्षा संहिता, 2020 के प्रावधान लागू होते हैं और आपने अवधि <b>${periodText}</b> के अंशदान का भुगतान करने में विलंब किया है।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        आपके द्वारा किए गए विलंब के आधार पर विनियम 31-ग के अंतर्गत कुल हर्जाना राशि <b><b>${damagesData.formatted}</b> ${damagesData.words}</b> अधिरोपित करने का प्रस्ताव है।
+                    </p>
+
+                    <div style="margin: 15px 0;">${buildTableHTML('tableDamages')}</div>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        आपको कारण बताने का अवसर दिया जाता है कि उक्त हर्जाना राशि क्यों न वसूल की जाए। इस संबंध में व्यक्तिगत सुनवाई दिनांक <b>${hearingDate}</b> को निश्चित की गई है।
+                    </p>
+
+                    <div style="margin-top: 40px; text-align: right;">
+                        <strong>भवदीय</strong><br><br><br>
+                        <strong>(__________)</strong><br>
+                        उप निदेशक
+                    </div>
+                </div>`;
+        }
+
+        return `<p style="color:red;">त्रुटि: अमान्य नोटिस प्रकार चुना गया है।</p>`;
+    }
+
+    function previewNotice(noticeType) {
+        let htmlContent = generateNoticeHTML(noticeType);
+        document.getElementById("noticePreviewContainer").innerHTML = htmlContent;
+
+        document.getElementById("btnModalDownload").onclick = function() {
+            downloadNoticeWord(noticeType);
+        };
+
+        document.getElementById("noticeModal").style.display = "flex";
+    }
+
+    function closeNoticePreview() {
+        document.getElementById("noticeModal").style.display = "none";
+    }
+
+    function printReport(reportPrefix) {
+        let empCode = document.getElementById("empCode").innerText || "Employer";
+        let timestamp = getFormattedTimestamp();
+
+        let originalTitle = document.title;
+        document.title = `${reportPrefix}_${empCode}_${timestamp}`;
+
+        window.print();
+
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 1000);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const modal = document.getElementById("warningModal");
+        const acceptBtn = document.getElementById("acceptWarningBtn");
+
+        if (acceptBtn) {
+            acceptBtn.addEventListener("click", function() {
+                sessionStorage.setItem("warningAccepted", "true");
+                modal.style.display = "none";
+            });
+        }
+    });
+
+    document.addEventListener('contextmenu', function(event) {
+        event.preventDefault();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12' || 
+           (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || 
+           (e.ctrlKey && e.key === 'u')) {
+            e.preventDefault();
+        }
+    });
+</script>
+
+</body>
+</html>
