@@ -585,6 +585,9 @@
   </div>
 </div>
 
+<!-- 1. सबसे पहले Header Data वाली JS फ़ाइल लोड करें -->
+<script src="header-data.js"></script>
+
 <script>
     const monthsName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     let globalCSVText = "";
@@ -660,6 +663,7 @@
         return result;
     }
 
+    // मानक dd/mm/yyyy फ़ॉर्मैट में बदलने हेतु फ़ंक्शन
     function formatDate(dateObj) {
         if (!dateObj || isNaN(dateObj.getTime())) return '-';
         let d = String(dateObj.getDate()).padStart(2, '0');
@@ -668,10 +672,12 @@
         return `${d}/${m}/${y}`;
     }
 
+    // तारीख की स्ट्रिंग को पार्स करके dd/mm/yyyy में बदलने का Helper
     function parseToDDMMYYYY(rawDateStr) {
         if (!rawDateStr || rawDateStr.trim() === '' || rawDateStr.trim() === '-') return '-';
         let cleaned = rawDateStr.trim();
 
+        // 1. DD/MM/YYYY या DD-MM-YYYY
         let dmyMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
         if (dmyMatch) {
             let day = String(parseInt(dmyMatch[1], 10)).padStart(2, '0');
@@ -680,6 +686,7 @@
             return `${day}/${month}/${year}`;
         }
 
+        // 2. YYYY-MM-DD या YYYY/MM/DD
         let ymdMatch = cleaned.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
         if (ymdMatch) {
             let year = ymdMatch[1];
@@ -688,6 +695,7 @@
             return `${day}/${month}/${year}`;
         }
 
+        // Fallback Date Parsing
         let parsed = new Date(cleaned);
         if (!isNaN(parsed.getTime())) {
             return formatDate(parsed);
@@ -696,9 +704,48 @@
         return cleaned;
     }
 
+    // "Mon YYYY" लेबल्स की सूची को लगातार (consecutive) महीनों के रेंज में बदलने हेतु
+    // उदाहरण: [May 2025, Jun 2025, Sep 2025, Oct 2025] => "May 2025 to Jun 2025, Sep 2025 to Oct 2025"
+    function formatMonthsAsRanges(monthLabels) {
+        if (!monthLabels || monthLabels.length === 0) return '';
+
+        let parsed = monthLabels.map(lbl => {
+            let parts = lbl.trim().split(' ');
+            return { m: monthsName.indexOf(parts[0]), y: parseInt(parts[1], 10), label: lbl };
+        }).filter(p => p.m !== -1 && !isNaN(p.y));
+
+        if (parsed.length === 0) return monthLabels.join(', ');
+
+        parsed.sort((a, b) => (a.y - b.y) || (a.m - b.m));
+
+        let ranges = [];
+        let rangeStart = parsed[0];
+        let rangeEnd = parsed[0];
+
+        for (let i = 1; i < parsed.length; i++) {
+            let curr = parsed[i];
+            let expectedMonth = (rangeEnd.m + 1) % 12;
+            let expectedYear = rangeEnd.y + (rangeEnd.m === 11 ? 1 : 0);
+
+            if (curr.m === expectedMonth && curr.y === expectedYear) {
+                rangeEnd = curr;
+            } else {
+                ranges.push({ start: rangeStart, end: rangeEnd });
+                rangeStart = curr;
+                rangeEnd = curr;
+            }
+        }
+        ranges.push({ start: rangeStart, end: rangeEnd });
+
+        return ranges.map(r =>
+            r.start.label === r.end.label ? r.start.label : `${r.start.label} to ${r.end.label}`
+        ).join(', ');
+    }
+
     function numToHindiWords(num) {
         if (num === 0) return 'शून्य';
 
+        // 1 से 99 तक के सभी शब्दों की पूरी लिस्ट
         const hindiWords = [
             '', 'एक', 'दो', 'तीन', 'चार', 'पांच', 'छ:', 'सात', 'आठ', 'नौ', 'दस',
             'ग्यारह', 'बारह', 'तेरह', 'चौदह', 'पंद्रह', 'सोलह', 'सत्रह', 'अठारह', 'उन्नीस', 'बीस',
@@ -742,12 +789,16 @@
         return words.trim();
     }
 
+
+    // ग्लोबल फ़ंक्शन: किसी भी संख्या या DOM Element से प्राप्त राशि को Formatted Amount और Hindi Words में बदलने हेतु
     function getFormattedAmountWithWords(valueOrElementId) {
         let rawVal = 0;
 
+        // यदि इम्पुट एक संख्या (Number) है
         if (typeof valueOrElementId === 'number') {
             rawVal = valueOrElementId;
         } 
+        // यदि इम्पुट एक DOM Element ID है (जैसे "cardInterest" या "cardMissing")
         else if (typeof valueOrElementId === 'string') {
             let textVal = document.getElementById(valueOrElementId)?.innerText || '0';
             rawVal = parseFloat(textVal.replace(/[^0-9.]/g, '')) || 0;
@@ -764,6 +815,8 @@
             fullText: `${formattedNumber} ${wordsInHindi}`.trim()
         };
     }    
+
+
 
     function getLegalHearingDate(daysToAdd = 15) {
         let date = new Date();
@@ -982,7 +1035,7 @@
                     let realDateObj = null;
 
                     if (rawRealisedDate && rawRealisedDate !== '-') {
-                        let parts = rawRealisedDate.split(/[\/\-]/);
+                        let parts = rawRealisedDate.split('/');
                         if (parts.length === 3) {
                             let day = parseInt(parts[0], 10);
                             let month = parseInt(parts[1], 10) - 1;
@@ -1109,7 +1162,7 @@
             <td style="color:#8e44ad;">${grandTotalDamages.toLocaleString('en-IN')}</td>
         </tr>` : "";
 
-        recalculateAdhoc();
+        initAdhocMonthEditor(processedAdhocList, contributionData);
 
         document.getElementById("summaryCards").style.display = "grid";
         document.getElementById("quickNavBar").style.display = "flex";
@@ -1125,8 +1178,8 @@
         if (!c6DataArray || c6DataArray.length === 0) return defaultFallback;
     
         for (let i = c6DataArray.length - 1; i >= 0; i--) {
-            if (c6DataArray[i].empCount && c6DataArray[i].empCount > 0) {
-                return c6DataArray[i].empCount;
+            if (c6DataArray[i].employees && c6DataArray[i].employees > 0) {
+                return c6DataArray[i].employees;
             }
         }
     
@@ -1139,8 +1192,10 @@
         adhocMonthsData = missingMonthsList.map(item => {
             let monthStr = typeof item === 'object' ? item.label : item;
             let isWithin5Years = typeof item === 'object' ? item.isWithin5Years : true;
-        
-            let autoCount = getLastKnownEmpCount(monthStr, c6DataArray);
+
+            let autoCount = (typeof item === 'object' && item.logicalEmployees > 0)
+                ? item.logicalEmployees
+                : getLastKnownEmpCount(monthStr, c6DataArray);
         
             return {
                 month: monthStr,
@@ -1208,6 +1263,9 @@
         recalculateAdhoc();
     }
     
+    // C-18 (Adhoc) नोटिस में सिर्फ़ वास्तविक Defaulter अवधि दिखाने हेतु
+    let adhocDefaulterPeriodText = '';
+
     function recalculateAdhoc() {
         let defaultWage = parseFloat(document.getElementById("adhocWage").value) || 11550;
         let defaultRate = parseFloat(document.getElementById("adhocRate").value) || 4.0;
@@ -1244,6 +1302,11 @@
             });
         }
     
+        // वास्तविक Defaulter अवधि (केवल दावा-योग्य महीने) - नोटिस हेतु
+        adhocDefaulterPeriodText = claimableList.length > 0
+            ? `${formatMonthsAsRanges(claimableList.map(i => i.label))} (कुल ${claimableList.length} माह)`
+            : '';
+
         let groupedData = {};
     
         claimableList.forEach((item) => {
@@ -1253,10 +1316,12 @@
                     empCount: item.logicalEmployees,
                     wage: item.wage,
                     rate: item.rate,
-                    monthCount: 0
+                    monthCount: 0,
+                    months: []
                 };
             }
             groupedData[key].monthCount += 1;
+            groupedData[key].months.push(item.label);
         });
     
         let adhocHTML = "";
@@ -1271,10 +1336,11 @@
             grandTotalAdhoc += rowAmount;
         
             let formulaText = `${group.rate.toFixed(1)}% * ${group.empCount} * ${group.wage} * ${group.monthCount}`;
+            let monthsListText = formatMonthsAsRanges(group.months);
         
             adhocHTML += `<tr>
                 <td>${adhocCount}.</td>
-                <td>Defaulter</td>
+                <td>Defaulter<br><span style="font-size:11px; font-weight:normal; color:#555;">(${monthsListText})</span></td>
                 <td style="font-weight:bold;">${group.monthCount}</td>
                 <td>${group.empCount}</td>
                 <td>${group.wage}</td>
@@ -1336,11 +1402,13 @@
         return true;
     }
 
+    // Helper: HTML टेबल को XLSX Worksheet में बदलने के समय तारीखों को TEXT Type की तरह फ़ोर्स करने हेतु
     function convertTableToSheetAsText(table) {
         let ws = XLSX.utils.table_to_sheet(table, { raw: true });
         for (let cell in ws) {
             if (cell[0] === '!') continue;
             let val = ws[cell].v;
+            // यदि वैल्यू तारीख स्वरूप (dd/mm/yyyy) है, तो उसे Text format ('s') बनाएं
             if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(val.trim())) {
                 ws[cell].t = 's';
                 ws[cell].v = val.trim();
@@ -1393,16 +1461,18 @@
         let empCode = document.getElementById("empCode")?.innerText || "Employer";
         let timestamp = typeof getFormattedTimestamp === 'function' ? getFormattedTimestamp() : new Date().getTime();
 
+        // Preview वाले सेम टू सेम (Exact Same) HTML को जनरेट करें
         let noticeHTMLContent = generateNoticeHTML(noticeType);
 
+        // MS Word A4 साइज संगत (Compatible) पूर्ण HTML स्ट्रक्चर
         const docContent = `
             <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
             <head>
                 <meta charset='utf-8'>
                 <style>
                     @page Section1 {
-                        size: 8.27in 11.69in;
-                        margin: 0.5in 0.5in 0.5in 0.5in;
+                        size: 8.27in 11.69in; /* A4 Paper Size */
+                        margin: 0.5in 0.5in 0.5in 0.5in; /* 0.5 inch Margin */
                         mso-header-margin: 0.5in;
                         mso-footer-margin: 0.5in;
                     }
@@ -1422,6 +1492,7 @@
             </html>
         `;
 
+        // Blob बनाकर Microsoft Word `.doc` फ़ाइल डाउनलोड करें
         const blob = new Blob(['\ufeff', docContent], { type: 'application/msword' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1437,7 +1508,9 @@
         }
     }
 
+
     function generateNoticeHTML(noticeType) {
+        // 1. डोम से डेटा निष्कर्षण (Data Extraction)
         let empName = document.getElementById("empName")?.innerText || '[Employer Name]';
         let empCode = document.getElementById("empCode")?.innerText || '[Employer Code]';
         let empAddress = document.getElementById("empAddress")?.innerText || '[Employer Address]';
@@ -1449,35 +1522,43 @@
         let hearingDate = typeof getLegalHearingDate === 'function' ? getLegalHearingDate(21) : '_____________';
         let noticeDate = new Date().toLocaleDateString('en-IN');
         
-        let headerHTML = "";
-        if (typeof ESIC_HEADER_BASE64 !== 'undefined' && ESIC_HEADER_BASE64) {
-            headerHTML = `
-                <div style="text-align: center; margin-bottom: 15px; width: 100%;">
-                    <img src="${ESIC_HEADER_BASE64}" 
-                         alt="ESIC Header" 
-                         width="700" 
-                         style="width: 18.5cm; max-width: 100%; height: auto; display: block; margin: 0 auto;">
-                </div>`;
-        } else {
-            headerHTML = `
-                <div style="text-align: center; margin-bottom: 15px; font-weight: bold; font-family: 'Times New Roman', serif;">
-                    <h2 style="margin: 0; font-size: 18px; color:#1b4f72;">कर्मचारी राज्य बीमा निगम</h2>
-                    <h3 style="margin: 5px 0 15px 0; font-size: 14px; color:#333;">EMPLOYEES' STATE INSURANCE CORPORATION</h3>
-                    <hr style="border: 0; border-top: 2px solid #1b4f72; margin-bottom: 15px;">
-                </div>`;
-        }
 
-        function buildTableHTML(tableId) {
-            let tableObj = document.getElementById(tableId);
-            if (!tableObj) return `<table style="width:100%; border-collapse:collapse;" border="1"><tr><td style="padding:8px; text-align:center;">विवरण उपलब्ध नहीं है।</td></tr></table>`;
-            let tableHTML = tableObj.outerHTML;
-            return tableHTML.replace(/<table[^>]*>/i, '<table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:11pt; font-family:\'Times New Roman\', serif;" border="1" cellPadding="6"');
-        }
 
+        // 2. कॉमन MS Word कम्पैटिबल हेडर HTML
+        // header-data.js न मिलने पर एरर के बजाय सिंपल टेक्स्ट हेडर बनता है,
+        // ताकि यूज़र Word फ़ाइल में बाद में अपना कस्टम हेडर डाल सके।
+        let headerImgSrc = (typeof ESIC_HEADER_BASE64 !== 'undefined' && ESIC_HEADER_BASE64) ? ESIC_HEADER_BASE64 : '';
+        const headerHTML = headerImgSrc ? `
+            <div style="text-align: center; margin-bottom: 15px; width: 100%;">
+                <img src="${headerImgSrc}" 
+                     alt="ESIC Header" 
+                     width="700" 
+                     style="width: 18.5cm; max-width: 100%; height: auto; display: block; margin: 0 auto;">
+            </div>
+        ` : `
+            <div style="text-align: center; margin-bottom: 15px; width: 100%; border-bottom: 1px solid #999999; padding-bottom: 8px;">
+                <p style="margin: 0; font-size: 22pt; font-weight: bold; color: #1b4f72; font-family: 'Mangal', 'Nirmala UI', serif;">कर्मचारी राज्य बीमा निगम</p>
+                <p style="margin: 4px 0 0 0; font-size: 12pt; font-weight: bold; color: #333333; font-family: 'Times New Roman', Times, serif;">EMPLOYEES' STATE INSURANCE CORPORATION</p>
+            </div>
+        `;
+
+        // 3. नोटिस प्रकार के आधार पर कंडीशन ब्लॉक
         if (noticeType === 'C18_Actual') {
             let tableObj = document.getElementById("tableActual");
             let tableRowsHTML = "";
             let calculatedTotal = 0;
+
+            // --- [1. यहाँ प्लेस करें] हेडर और नोटिस लेबल ---
+            const topNoticeLabelHTML = `
+                <table style="width: 18.5cm; margin: 0 auto 5px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 9pt; font-weight: bold;">
+                    <tr style="border: none !important;">
+                        <td style="text-align: right; border: none !important; padding: 0;">
+                            C-18(Actual), Speed Post/e-mail
+                        </td>
+                    </tr>
+                </table>
+            `;
+
 
             if (tableObj && tableObj.querySelector("tbody")) {
                 let rows = tableObj.querySelectorAll("tbody tr");
@@ -1505,6 +1586,7 @@
                 : totalShortfallCard;
 
             return `
+                
                 <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18(Actual), Speed Post/e-mail</div>
    
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; padding: 0; max-width: 7.2in; width: 100%; margin: auto;">    
@@ -1512,7 +1594,7 @@
                     
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important; padding: 0;">संख्या: ${empCode}/Ins</td>
+                            <td style="text-align: left; border: none !important; padding: 0;">संख्या: ${empCode}/BEC</td>
                             <td style="text-align: right; border: none !important; padding: 0;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1527,9 +1609,7 @@
 
                     <p style="text-align: left; font-weight: bold; margin-bottom: 10px;">महोदय,</p>
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        आपको सूचित किया जाता है कि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 29 के साथ पठित धारा 31 [पूर्व में क.रा.बी. अधिनियम, 1948 की धारा 39 के साथ पठित धारा 40]</b> के अधीन, अधिनियम के अधीन व्‍याप्‍त किसी कारखाने/स्‍थापन के प्रधान नियोक्‍ता द्वारा कर्मचारी राज्‍य बीमा (केन्‍द्रीय) नियम, 1950 (यथा संशोधित) के नियम 51 में विनिर्दिष्‍ट दरों पर, प्रत्‍येक कर्मचारी के लिए नियोक्‍ता तथा कर्मचारी, दोनों के अंशदान का भुगतान किया जाना अपेक्षित है। कर्मचारी राज्‍य बीमा (साधारण) विनियम, 1950 के विनियम 29, 31 तथा 33 के संबंध में अंशदान इस प्रयोजन के लिए निर्धारित कालावधि के अंदर निगम द्वारा प्राधिकृत बैंक में जमा किए जाने अपेक्षित हैं जब तक कि इसके लिए अन्‍यथा न कहा गया हो।
-
-              सखेद सूचित किया जाता है कि आपने अब तक नीचे दी गई अवधि(यों) के लिए कानून के उपबंधों के अनुसार अंशदानों का भुगतान नहीं किया है जो कि क.रा.बी. (साधारण) विनियम, 1950 के विनियम 32 के अधीन फॉर्म 6 रजिस्‍टर में आपके द्वारा प्रस्‍तुत किए गए अंशदानों के मासिक विवरण में देखा गया।
+                        आपको सूचित किया जाता है कि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 29 के साथ पठित धारा 31 [पूर्व में क.रा.बी. अधिनियम, 1948 की धारा 39 के साथ पठित धारा 40]</b> के अधीन, अधिनियम के अधीन व्याप्त किसी कारखाने/स्थापना के प्रधान नियोक्ता द्वारा नियम 51 में विनिर्दिष्ट दरों पर अंशदान का भुगतान किया जाना अपेक्षित है...
                     </p>
 
                     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;">
@@ -1550,8 +1630,8 @@
                     </table>
 
                     <p style="text-align: justify; margin-bottom: 10px;">1. कृपया ध्यान दें कि अधिनियम के अधीन देय किसी भी प्रकार का अंशदान <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 129 से 132 (पूर्व में क.रा.बी. अधिनियम की धारा 45ग से 45झ)</b> के अधीन वसूल किया जा सकता है।</p>
-                    <p style="text-align: justify; margin-bottom: 10px;">2. कृपया यह भी संज्ञान में लिया जाए कि कर्मचारी राज्‍य बीमा (साधारण) विनियम, 1950 के विनियम 31 के साथ पठित विनियम 29 के अनुसार अंशदान के भुगतान करने में विफल रहने पर अंशदानों के भुगतान करने में चूक या विलम्‍ब के प्रत्‍येक दिन के लिए अंशदान के बकायों पर अधिनियम की धारा 39(5) के अधीन 12% प्रतिवर्ष की दर से ब्‍याज देय है। क.रा.बी. अधिनियम की धारा 39(5) के अधीन देय किसी भी ब्‍याज की वसूली क.रा.बी. अधिनियम की धारा 45ग से 45झ के अधीन की जाएगी। </p>
-                    <p style="text-align: justify; margin-bottom: 25px;">3. कृपया ध्‍यान रखें कि यदि अद्यतन बकाया अंशदान शीघ्र अदा नहीं किए जाते हैं और किसी भी स्थिति में 30 दिन के भीतर भुगतान नहीं किया जाता और इस कार्यालय को सूचित नहीं किया जाता तो इस कार्यालय को <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 129 से 132 (पूर्व में क.रा.बी. अधिनियम की धारा 45ग से 45झ)</b> के अधीन वसूली करने के लिए बाध्‍य होना पड़ेगा।</p>
+                    <p style="text-align: justify; margin-bottom: 10px;">2. क.रा.बी. (साधारण) विनियम, 1950 के विनियम 31 के अनुसार अंशदान भुगतान में विलम्ब के लिए <b>धारा 127 [पूर्व में धारा 39(5)]</b> के अधीन 12% प्रतिवर्ष की दर से ब्याज देय है।</p>
+                    <p style="text-align: justify; margin-bottom: 25px;">3. यदि अद्यतन बकाया अंशदान 30 दिन के भीतर भुगतान नहीं किया जाता तो निगम वसूली हेतु बाध्य होगा।</p>
 
                     <div style="margin-top: 30px; text-align: right;">
                         <strong>भवदीय</strong><br><br><br>
@@ -1561,8 +1641,18 @@
                 </div>`;
         }
 
+        // Dynamic Table Builder Helper (Word Tables Compatibility)
+        function buildTableHTML(tableId) {
+            let tableObj = document.getElementById(tableId);
+            if (!tableObj) return `<table style="width:100%; border-collapse:collapse;" border="1"><tr><td style="padding:8px; text-align:center;">विवरण उपलब्ध नहीं है।</td></tr></table>`;
+            let tableHTML = tableObj.outerHTML;
+            return tableHTML.replace(/<table[^>]*>/i, '<table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:11pt; font-family:\'Times New Roman\', serif;" border="1" cellPadding="6"');
+        }
+
+        // 4. C-18 ADHOC NOTICE
         if (noticeType === 'C18_Adhoc') {
             return `
+
                 <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18 (Adhoc), Speed Post/e-mail</div>
 
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
@@ -1570,7 +1660,7 @@
 
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/Ins</td>
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
                             <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1586,7 +1676,7 @@
                     </p>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        आपको सूचित किया जाता है कि अवधि <b>${periodText}</b> के लिए आपकी स्थापना द्वारा निर्धारित अंशदान का भुगतान नहीं किया गया है एवं रिकॉर्ड प्रस्तुत नहीं किए गए हैं।
+                        आपको सूचित किया जाता है कि अवधि <b>${adhocDefaulterPeriodText || periodText}</b> के लिए आपकी स्थापना द्वारा निर्धारित अंशदान का भुगतान नहीं किया गया है एवं रिकॉर्ड प्रस्तुत नहीं किए गए हैं।
                     </p>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
@@ -1607,10 +1697,12 @@
                 </div>`;
         }
 
+        // 5. INTEREST NOTICE (C-18i)
         if (noticeType === 'C18i_Interest' || noticeType === 'Interest_Notice') {
             let interestData = getFormattedAmountWithWords("cardInterest");
             
             return `
+
                 <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Interest Notice, Speed Post/e-mail</div>
 
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
@@ -1618,7 +1710,7 @@
 
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/Ins</td>
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
                             <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1638,7 +1730,7 @@
                     </p>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        आपकी स्थापना द्वारा विलंब से जमा अंशदान पर कुल ब्याज की गणना <b>${interestData.formatted} ${interestData.words}</b> की गई है (अवधि: ${periodText})।
+                        आपकी स्थापना द्वारा विलंब से जमा अंशदान पर कुल ब्याज की गणना <b>${totalInterest} ${interestData.words}</b> की गई है (अवधि: ${periodText})।
                     </p>
 
                     <div style="margin: 15px 0;">${buildTableHTML('tableInterest')}</div>
@@ -1655,9 +1747,10 @@
                 </div>`;
         }
 
+        // 6. DAMAGES NOTICE (D-18)
         if (noticeType === 'D18_Damages' || noticeType === 'Damages_Notice') {
-            let damagesData = getFormattedAmountWithWords("cardDamages");
             return `
+
                 <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">D-18 (Damages Notice), Speed Post/e-mail</div>
 
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
@@ -1665,7 +1758,7 @@
 
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/Ins</td>
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
                             <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1685,7 +1778,7 @@
                     </p>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        आपके द्वारा किए गए विलंब के आधार पर विनियम 31-ग के अंतर्गत कुल हर्जाना राशि <b><b>${damagesData.formatted}</b> ${damagesData.words}</b> अधिरोपित करने का प्रस्ताव है।
+                        आपके द्वारा किए गए विलंब के आधार पर विनियम 31-ग के अंतर्गत कुल हर्जाना राशि <b>${totalDamages}</b> अधिरोपित करने का प्रस्ताव है।
                     </p>
 
                     <div style="margin: 15px 0;">${buildTableHTML('tableDamages')}</div>
