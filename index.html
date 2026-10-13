@@ -6,6 +6,8 @@
     <title id="pageTitle">C6 Register Master Dashboard - ESIC</title>
     <!-- SheetJS CDN for Export to Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- docx library: असली .docx फ़ाइल बनाने के लिए -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.6.1/dist/index.iife.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -157,12 +159,14 @@
         .nav-tab-btn.tab-adhoc { border-color: #c0392b; color: #c0392b; }
         .nav-tab-btn.tab-interest { border-color: #2980b9; color: #2980b9; }
         .nav-tab-btn.tab-damages { border-color: #8e44ad; color: #8e44ad; }
+        .nav-tab-btn.tab-d1 { border-color: #16a085; color: #16a085; }
 
         .nav-tab-btn.active.tab-master { background: #2c3e50; color: #fff; }
         .nav-tab-btn.active.tab-actual { background: #d35400; color: #fff; }
         .nav-tab-btn.active.tab-adhoc { background: #c0392b; color: #fff; }
         .nav-tab-btn.active.tab-interest { background: #2980b9; color: #fff; }
         .nav-tab-btn.active.tab-damages { background: #8e44ad; color: #fff; }
+        .nav-tab-btn.active.tab-d1 { background: #16a085; color: #fff; }
 
         .adhoc-controls {
             background-color: #fdf2e9;
@@ -354,7 +358,8 @@
     <div id="noticeModal" class="modal-overlay">
         <div class="modal-content" style="max-width: 850px;">
             <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:10px;">
-                <button class="btn-action btn-word" id="btnModalDownload">📝 Word डाउनलोड करें</button>
+                <button class="btn-action btn-word" id="btnModalDocx">📄 Word (.docx) डाउनलोड करें</button>
+                <button class="btn-action btn-word" id="btnModalDownload" style="background:#7f8c8d;">📝 पुराना (.doc) डाउनलोड</button>
                 <button class="btn-action btn-clear" onclick="closeNoticePreview()">❌ बंद करें</button>
             </div>
             <div id="noticePreviewContainer"></div>
@@ -368,7 +373,7 @@
             <h3 id="cardShortfall" style="color:#d35400;">₹ 0</h3>
         </div>
         <div class="kpi-card missing">
-            <span>⚠️ C-18 Adhoc कुल दावा (5 Yr Limit)</span>
+            <span>📊 C-18 Adhoc कुल दावा (5 Yr Limit)</span>
             <h3 id="cardMissing" style="color:#c0392b;">₹ 0</h3>
         </div>
         <div class="kpi-card interest">
@@ -383,14 +388,16 @@
 
     <!-- Period Info -->
     <div id="targetInfo" class="target-info-line"></div>
+    <div id="rangeWarning" style="display:none; margin:8px 0; padding:10px 14px; background:#fff3cd; border:1px solid #e0a800; border-radius:6px; color:#7a4d00; font-size:14px; line-height:1.5;"></div>
 
     <!-- ONE-CLICK UNIVERSAL QUICK SWITCH NAVIGATION BAR -->
     <div id="quickNavBar" class="quick-nav-bar" style="display: none;">
-        <button id="btnTabMaster" class="nav-tab-btn tab-master" onclick="showPage('mainC6Page')">📊 मास्टर C-6</button>
+        <button id="btnTabMaster" class="nav-tab-btn tab-master" onclick="showPage('mainC6Page')">🤖 मास्टर C-6</button>
         <button id="btnTabActual" class="nav-tab-btn tab-actual" onclick="showPage('c18ActualPage')">📑 C-18 (Actual)</button>
-        <button id="btnTabAdhoc" class="nav-tab-btn tab-adhoc" onclick="showPage('c18AdhocPage')">⚠️ C-18 (Adhoc)</button>
+        <button id="btnTabAdhoc" class="nav-tab-btn tab-adhoc" onclick="showPage('c18AdhocPage')">📊 C-18 (Adhoc)</button>
         <button id="btnTabInterest" class="nav-tab-btn tab-interest" onclick="showPage('c18iPage')">📈 C-18(i) ब्याज</button>
         <button id="btnTabDamages" class="nav-tab-btn tab-damages" onclick="showPage('d18Page')">⚖️ D-18 हर्जाना</button>
+        <button id="btnTabD1" class="nav-tab-btn tab-d1" onclick="showPage('d1Page')">📨 D-1 पत्र</button>
     </div>
 
     <!-- MAIN PAGE: C-6 REGISTER MASTER VIEW -->
@@ -562,6 +569,41 @@
         </div>
     </div>
 
+    <!-- PAGE 6: D-1 अंशदान अनुपालन पत्र -->
+    <div id="d1Page" class="page-view">
+        <div class="page-header-nav" style="border-left-color: #16a085;">
+            <h3 style="margin:0; color:#16a085;">📨 D-1 अंशदान अनुपालन पत्र</h3>
+            <div>
+                <button class="btn-action btn-word" onclick="previewNotice('D1')">👁️ Notice Preview & 📝 Download</button>
+            </div>
+        </div>
+        <div style="background:#fff; border:1px solid #d5e8e4; border-radius:8px; padding:16px; margin-top:10px;">
+            <p style="margin:0 0 12px 0; color:#555; font-size:14px; line-height:1.5;">
+                इस पत्र में संस्थान का नाम व पता, <b>नोटिस संख्या (Employer_Code/Ins)</b> और <b>आज की तारीख़</b> CSV/कंप्यूटर से अपने-आप आते हैं। श्री/श्रीमती का नाम और पता (जैसे "Michael Jackson") नीचे भर सकते हैं; ख़ाली छोड़ने पर पत्र में डैश वाली जगह रहेगी।
+            </p>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px;">
+                <label style="font-size:13px; font-weight:bold; color:#2c3e50;">श्री/श्रीमती (नाम)
+                    <input type="text" id="d1PersonName" style="width:100%; padding:7px; margin-top:4px; border:1px solid #b2bec3; border-radius:4px; box-sizing:border-box;">
+                </label>
+                <label style="font-size:13px; font-weight:bold; color:#2c3e50;">श्री/श्रीमती का पता
+                    <input type="text" id="d1PersonAddr" style="width:100%; padding:7px; margin-top:4px; border:1px solid #b2bec3; border-radius:4px; box-sizing:border-box;">
+                </label>
+            </div>
+
+            <div style="margin-top:16px; padding-top:12px; border-top:1px dashed #b2bec3;">
+                <div style="font-size:13px; font-weight:bold; color:#2c3e50;">अंशदान फ़ाइल न किए गए माह की अवधि (D-1 की अवधि)</div>
+                <div id="d1PeriodRows"></div>
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn-action" style="background:#16a085; color:#fff;" onclick="addD1PeriodRow()">➕ अवधि जोड़ें (से – तक)</button>
+                    <button type="button" class="btn-action" style="background:#7f8c8d; color:#fff;" onclick="resetD1PeriodFromAdhoc()">↺ C-18 (Adhoc) के अनुसार भरें</button>
+                </div>
+                <div id="d1PeriodPreview" style="margin-top:10px; font-size:14px; color:#1b4f72;"></div>
+                <div id="d1StartMonthHint" style="margin-top:6px; font-size:13px; color:#555;"></div>
+            </div>
+        </div>
+    </div>
+
+
 </div>
 
 <!-- Initial Warning Modal Container -->
@@ -635,6 +677,107 @@
         return `${YYYY}-${MM}-${DD}_${hh}-${mm}-${ss}`;
     }
 
+    // ===== D-1 पत्र: फ़ॉर्म और अवधि (C-18 Adhoc के चूक वाले महीनों के अनुसार; से-तक बदलने योग्य) =====
+    const monthsFullEn = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    let adhocClaimableLabels = [];
+    let d1PeriodManual = false;
+
+    function d1ParseLabel(lbl) {
+        const parts = String(lbl).trim().split(' ');
+        return { m: monthsName.indexOf(parts[0]), y: parseInt(parts[1], 10) };
+    }
+    const d1Val = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+
+    // महीनों के लेबल (जैसे "Jan 2025") -> लगातार महीनों के रन [{from:'2025-01', to:'2025-03'}, ...]
+    function d1LabelsToRuns(labels) {
+        const p = labels.map(d1ParseLabel).filter(x => x.m !== -1 && !isNaN(x.y)).sort((a, b) => (a.y - b.y) || (a.m - b.m));
+        const runs = [];
+        p.forEach(x => {
+            const last = runs[runs.length - 1];
+            if (last && ((last.m + 1) % 12 === x.m) && (last.y + (last.m === 11 ? 1 : 0) === x.y)) { last.m = x.m; last.y = x.y; last.toVal = d1Val(x.y, x.m); }
+            else if (last && last.m === x.m && last.y === x.y) { /* दोहराव छोड़ें */ }
+            else runs.push({ m: x.m, y: x.y, fromVal: d1Val(x.y, x.m), toVal: d1Val(x.y, x.m) });
+        });
+        return runs;
+    }
+
+    function d1RowHTML(fromVal, toVal) {
+        const st = 'padding:6px; border:1px solid #b2bec3; border-radius:4px;';
+        return `<div class="d1-row" style="display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+            <span style="font-size:13px;">से</span><input type="month" class="d1-from" value="${fromVal || ''}" style="${st}">
+            <span style="font-size:13px;">तक</span><input type="month" class="d1-to" value="${toVal || ''}" style="${st}">
+            <button type="button" onclick="removeD1PeriodRow(this)" title="यह अवधि हटाएँ" style="border:none; background:#e74c3c; color:#fff; border-radius:4px; padding:6px 10px; cursor:pointer;">✖</button>
+        </div>`;
+    }
+
+    function addD1PeriodRow() {
+        const box = document.getElementById('d1PeriodRows');
+        if (!box) return;
+        box.insertAdjacentHTML('beforeend', d1RowHTML('', ''));
+        d1PeriodManual = true;
+        d1RefreshPreview();
+    }
+    function removeD1PeriodRow(btn) {
+        btn.closest('.d1-row').remove();
+        d1PeriodManual = true;
+        d1RefreshPreview();
+    }
+
+    // पत्र में आने वाला अवधि-पाठ, जैसे: "Jan-2025 to Mar-2025, Jun-2025, Nov-2025 to Jan-2026"
+    function getD1PeriodText() {
+        const set = new Set();
+        document.querySelectorAll('#d1PeriodRows .d1-row').forEach(row => {
+            let f = row.querySelector('.d1-from').value, t = row.querySelector('.d1-to').value;
+            if (!f && !t) return;
+            if (!f) f = t;
+            if (!t) t = f;
+            if (t < f) { const tmp = f; f = t; t = tmp; }
+            let [fy, fm] = f.split('-').map(Number), [ty, tm] = t.split('-').map(Number);
+            let y = fy, m = fm - 1, guard = 0;
+            while ((y < ty || (y === ty && m <= tm - 1)) && guard++ < 1200) {
+                set.add(`${monthsName[m]} ${y}`);
+                m++; if (m > 11) { m = 0; y++; }
+            }
+        });
+        if (!set.size) return '';
+        return formatMonthsAsRanges(Array.from(set))
+            .replace(/([A-Z][a-z]{2}) (\d{4})/g, '$1-$2')
+            .replace(/([A-Z][a-z]{2}-\d{4}) to ([A-Z][a-z]{2}-\d{4})/g, '$1 से $2 तक');
+    }
+
+    function d1RefreshPreview() {
+        const el = document.getElementById('d1PeriodPreview');
+        if (!el) return;
+        const t = getD1PeriodText();
+        el.innerHTML = t ? `पत्र में अवधि इस प्रकार दिखेगी: <b>${t}</b>` : '⚠️ अवधि अभी ख़ाली है — पत्र में बिंदियाँ आएँगी।';
+    }
+
+    function resetD1Form() {
+        ['d1PersonName', 'd1PersonAddr'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        d1PeriodManual = false;
+        const box = document.getElementById('d1PeriodRows'); if (box) box.innerHTML = '';
+    }
+
+    // C-18 (Adhoc) के चूक वाले (Missing, 5 वर्ष की सीमा के भीतर) महीनों के अनुसार D-1 की अवधि भरें
+    function updateD1Period() {
+        const box = document.getElementById('d1PeriodRows');
+        const hint = document.getElementById('d1StartMonthHint');
+        if (!box) return;
+        const runs = d1LabelsToRuns(adhocClaimableLabels);
+        if (!d1PeriodManual) {
+            box.innerHTML = runs.length ? runs.map(r => d1RowHTML(r.fromVal, r.toVal)).join('') : d1RowHTML('', '');
+            d1RefreshPreview();
+        }
+        if (hint) hint.innerHTML = runs.length
+            ? 'ℹ️ अवधि C-18 (Adhoc) के चूक वाले महीनों के अनुसार अपने-आप भरी (Auto fill) गई है। अंशदान फ़ाइल न किए गए माह के लिए चूक अवधि बदल सकते हैं, नई अवधि जोड़ या हटा सकते हैं; "C-18 (Adhoc) के अनुसार भरें" दबाने पर वापस वही अवधि आ जाएगी।'
+            : '⚠️ इस CSV में चूक (Missing) वाला कोई महीना नहीं मिला। अवधि हाथ से भरें, या हो सकता है कि D-1 पत्र की ज़रूरत ही न हो।';
+    }
+    function resetD1PeriodFromAdhoc() { d1PeriodManual = false; updateD1Period(); }
+
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.closest && e.target.closest('#d1PeriodRows')) { d1PeriodManual = true; d1RefreshPreview(); }
+    });
+
     function showPage(pageId) {
         document.querySelectorAll('.page-view').forEach(page => page.style.display = 'none');
         document.getElementById(pageId).style.display = 'block';
@@ -645,6 +788,7 @@
         else if (pageId === 'c18AdhocPage') document.getElementById('btnTabAdhoc').classList.add('active');
         else if (pageId === 'c18iPage') document.getElementById('btnTabInterest').classList.add('active');
         else if (pageId === 'd18Page') document.getElementById('btnTabDamages').classList.add('active');
+        else if (pageId === 'd1Page') document.getElementById('btnTabD1').classList.add('active');
     }
 
     function parseCSVLine(line) {
@@ -893,7 +1037,7 @@
             let line = lines[i].trim();
             if (!line) continue;
 
-            if (line.startsWith("From:")) dateRangeText = line;
+            if (/^From\s*:/i.test(line)) dateRangeText = line;
             else if (line.startsWith("Section: Address")) currentSection = "Address";
             else if (line.startsWith("Section: Contribution")) currentSection = "Contribution";
             else if (currentSection === "Address" && !line.includes("employeraddress")) {
@@ -932,13 +1076,39 @@
         document.getElementById("empAddress").innerText = empAddress;
         document.getElementById("employerCard").style.display = "block";
 
+        // C-6 अवधि: पहले CSV की "From: .. To: .." पंक्ति से; न मिले तो CSV की पहली-आख़िरी अंशदान पंक्ति से (चेतावनी के साथ)
         let startYear = 2019, startMonth = 0, endYear = 2026, endMonth = 5;
-        const matchRange = dateRangeText.match(/From\s*:\s*(\d{2})\/(\d{2})\/(\d{4})\s*To\s*:\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+        const rangeWarnEl = document.getElementById("rangeWarning");
+        if (rangeWarnEl) { rangeWarnEl.style.display = "none"; rangeWarnEl.innerHTML = ""; }
+
+        const matchRange = dateRangeText.match(/From\s*:\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\s*To\s*:\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/i);
         if (matchRange) {
             startMonth = parseInt(matchRange[2], 10) - 1;
             startYear = parseInt(matchRange[3], 10);
             endMonth = parseInt(matchRange[5], 10) - 1;
             endYear = parseInt(matchRange[6], 10);
+        } else {
+            let minKey = Infinity, maxKey = -Infinity;
+            contributionData.forEach(d => {
+                if (!isNaN(d.month) && !isNaN(d.year) && d.month >= 1 && d.month <= 12) {
+                    let k = d.year * 12 + (d.month - 1);
+                    if (k < minKey) minKey = k;
+                    if (k > maxKey) maxKey = k;
+                }
+            });
+            let usedData = isFinite(minKey) && isFinite(maxKey);
+            if (usedData) {
+                startYear = Math.floor(minKey / 12); startMonth = minKey % 12;
+                endYear = Math.floor(maxKey / 12);   endMonth = maxKey % 12;
+            }
+            if (rangeWarnEl) {
+                rangeWarnEl.innerHTML = `⚠️ <b>चेतावनी:</b> CSV में "From: ... To: ..." (C-6 अवधि) वाली पंक्ति नहीं मिली। ` +
+                    (usedData
+                        ? `इसलिए अवधि CSV की पहली और आख़िरी अंशदान पंक्ति से <b>${monthsName[startMonth]} ${startYear} से ${monthsName[endMonth]} ${endYear}</b> तक अनुमानित की गई है। इस अवधि के बाद के महीने "Missing" (Adhoc) में <b>नहीं</b> गिने गए हैं।`
+                        : `अंशदान की कोई पंक्ति भी पढ़ी नहीं जा सकी, इसलिए डिफ़ॉल्ट अवधि <b>Jan 2019 से Jun 2026</b> मानी गई है — यह ग़लत हो सकती है।`) +
+                    ` कृपया ESIC पोर्टल से पूरी CSV दोबारा डाउनलोड करके जाँच लें।`;
+                rangeWarnEl.style.display = "block";
+            }
         }
 
         let expectedMonths = [];
@@ -1061,6 +1231,15 @@
 
                     let displayLabel = target.label;
 
+                    // स्थिति (Status): भुगतान तारीख़ न हो / देरी / कम जमा - कोई भी हो तो OK नहीं दिखेगा
+                    let noRealisedDate = !(realDateObj && !isNaN(realDateObj.getTime()));
+                    let statusParts = [];
+                    if (noRealisedDate) statusParts.push('No Realised Date');
+                    if (delayDays > 0) statusParts.push('Delayed');
+                    if (diff > 0.01) statusParts.push('Less Paid');
+                    let statusText = statusParts.length ? statusParts.join(' / ') : 'OK';
+                    let statusColor = noRealisedDate ? '#c0392b' : (statusParts.length ? 'orange' : 'green');
+
                     masterHTML += `<tr>
                         <td>${masterCount}</td>
                         <td><strong>${displayLabel}</strong></td>
@@ -1072,7 +1251,7 @@
                         <td>${formatDate(dueDate)}</td>
                         <td>${formattedRealisedDate}</td>
                         <td>${delayDays > 0 ? delayDays : (realDateObj ? '0' : '-')}</td>
-                        <td><span style="color:${delayDays > 0 || diff > 0 ? 'orange':'green'}; font-weight:bold;">${delayDays > 0 ? 'Delayed' : 'OK'}</span></td>
+                        <td><span style="color:${statusColor}; font-weight:bold;">${statusText}</span></td>
                     </tr>`;
 
                     if (challanAmt > 0 && delayDays > 0 && realDateObj) {
@@ -1162,6 +1341,7 @@
             <td style="color:#8e44ad;">${grandTotalDamages.toLocaleString('en-IN')}</td>
         </tr>` : "";
 
+        resetD1Form();
         initAdhocMonthEditor(processedAdhocList, contributionData);
 
         document.getElementById("summaryCards").style.display = "grid";
@@ -1303,6 +1483,8 @@
         }
     
         // वास्तविक Defaulter अवधि (केवल दावा-योग्य महीने) - नोटिस हेतु
+        adhocClaimableLabels = claimableList.map(i => i.label);
+        updateD1Period();
         adhocDefaulterPeriodText = claimableList.length > 0
             ? `${formatMonthsAsRanges(claimableList.map(i => i.label))} (कुल ${claimableList.length} माह)`
             : '';
@@ -1529,14 +1711,14 @@
         // ताकि यूज़र Word फ़ाइल में बाद में अपना कस्टम हेडर डाल सके।
         let headerImgSrc = (typeof ESIC_HEADER_BASE64 !== 'undefined' && ESIC_HEADER_BASE64) ? ESIC_HEADER_BASE64 : '';
         const headerHTML = headerImgSrc ? `
-            <div style="text-align: center; margin-bottom: 15px; width: 100%;">
+            <div data-docx-header="1" style="text-align: center; margin-bottom: 15px; width: 100%;">
                 <img src="${headerImgSrc}" 
                      alt="ESIC Header" 
                      width="700" 
                      style="width: 18.5cm; max-width: 100%; height: auto; display: block; margin: 0 auto;">
             </div>
         ` : `
-            <div style="text-align: center; margin-bottom: 15px; width: 100%; border-bottom: 1px solid #999999; padding-bottom: 8px;">
+            <div data-docx-header="1" style="text-align: center; margin-bottom: 15px; width: 100%; border-bottom: 1px solid #999999; padding-bottom: 8px;">
                 <p style="margin: 0; font-size: 22pt; font-weight: bold; color: #1b4f72; font-family: 'Mangal', 'Nirmala UI', serif;">कर्मचारी राज्य बीमा निगम</p>
                 <p style="margin: 4px 0 0 0; font-size: 12pt; font-weight: bold; color: #333333; font-family: 'Times New Roman', Times, serif;">EMPLOYEES' STATE INSURANCE CORPORATION</p>
             </div>
@@ -1587,14 +1769,14 @@
 
             return `
                 
-                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18(Actual), Speed Post/e-mail</div>
+                <div data-docx-header="1" style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18(Actual), Speed Post/e-mail</div>
    
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; padding: 0; max-width: 7.2in; width: 100%; margin: auto;">    
                     ${headerHTML}
                     
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important; padding: 0;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: left; border: none !important; padding: 0;">संख्या: ${empCode}/Ins</td>
                             <td style="text-align: right; border: none !important; padding: 0;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1671,21 +1853,78 @@
             let tableObj = document.getElementById(tableId);
             if (!tableObj) return `<table style="width:100%; border-collapse:collapse;" border="1"><tr><td style="padding:8px; text-align:center;">विवरण उपलब्ध नहीं है।</td></tr></table>`;
             let tableHTML = tableObj.outerHTML;
-            return tableHTML.replace(/<table[^>]*>/i, '<table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:11pt; font-family:\'Times New Roman\', serif;" border="1" cellPadding="6"');
+            return tableHTML.replace(/<table[^>]*>/i, '<table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:11pt; font-family:\'Times New Roman\', serif;" border="1" cellPadding="6">');
+        }
+
+        // 3.5 D-1 अंशदान अनुपालन पत्र (नया प्रारूप)
+        if (noticeType === 'D1') {
+            const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const val = id => (document.getElementById(id)?.value || '').trim();
+            const dots = '..........';
+            const pad2 = n => String(n).padStart(2, '0');
+
+            const t0 = new Date();
+            const d1Period = getD1PeriodText() || dots;
+            const d1Today = `${pad2(t0.getDate())}/${pad2(t0.getMonth() + 1)}/${t0.getFullYear()}`;   // आज की तारीख़ (dd/mm/yyyy)
+            const personName = val('d1PersonName');
+            const personAddr = val('d1PersonAddr');
+            const nameEsc = esc(empName), addrEsc = esc(String(empAddress).trim()), codeEsc = esc(empCode);
+
+            return `
+
+                <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
+                    <div data-docx-header="1" style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">D-1; Email / Speed Post</div>
+                    ${headerHTML}
+
+                    <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
+                        <tr style="border: none !important;">
+                            <td style="text-align: left; border: none !important;">सं. ${codeEsc}/Ins</td>
+                            <td style="text-align: right; border: none !important;">दिनांक: ${d1Today}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 15px;">
+                        श्री/श्रीमती ${personName ? esc(personName) : '-----------------------'}<br>
+                        ${personAddr ? esc(personAddr) : '-------------------------------------'}
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        मैसर्स ${nameEsc}<br>
+                        ${addrEsc}
+                    </div>
+
+                    <p style="text-align: justify; margin-bottom: 15px;"><b>विषय :</b> सामाजिक सुरक्षा संहिता, 2020 [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 (जिसे आगे "अधिनियम" कहा गया है)] के अंतर्गत अनुपालन के संबंध में।</p>
+
+                    <p style="margin-bottom: 15px;"><b>महोदय,</b></p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">उपरोक्त विषय के संदर्भ में आपको अवगत कराना है कि आपका संस्थान <b>सामाजिक सुरक्षा संहिता, 2020 [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 (जिसे आगे "अधिनियम" कहा गया है)]</b> के अंतर्गत व्याप्त है तथा आपके संस्थान को कोड संख्या आवंटित की गई है।</p>
+                    <p style="text-align: justify; margin-bottom: 15px;">आपको सूचित किया जाता है कि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 29 के साथ पठित धारा 31 [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 की धारा 39 के साथ पठित धारा 40]</b> के प्रावधानों के अनुसार, अधिनियम के अंतर्गत आच्छादित किसी कारखाने/स्थापन के प्रधान नियोक्ता द्वारा कर्मचारी राज्य बीमा (केंद्रीय) नियम, 1950 (यथा संशोधित) के नियम 51 में विनिर्दिष्ट दरों पर प्रत्येक कर्मचारी के संबंध में नियोक्ता एवं कर्मचारी, दोनों के अंशदान का भुगतान किया जाना अपेक्षित है।</p>
+                    <p style="text-align: justify; margin-bottom: 15px;">कर्मचारी राज्य बीमा (साधारण) विनियम, 1950 के विनियम 29, 31 एवं 33 के प्रावधानों के अनुसार, अंशदान निर्धारित अवधि के भीतर निगम द्वारा प्राधिकृत बैंक में जमा किया जाना आवश्यक है, जब तक कि इस संबंध में अन्यथा प्रावधान न किया गया हो।</p>
+                    <p style="text-align: justify; margin-bottom: 15px;">रिकॉर्ड की जाँच करने पर यह पाया गया है कि आपके संस्थान द्वारा <b>${esc(d1Period)}</b> मासिक अंशदान भुगतान नहीं किया गया है।</p>
+                    <p style="text-align: justify; margin-bottom: 15px;"><b>सामाजिक सुरक्षा संहिता, 2020 की धारा 28, 29 एवं 31 [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 की धारा 38, 39 एवं 40]</b> के अंतर्गत कर्मचारियों का पंजीकरण एवं मासिक अंशदान का समय पर भुगतान नियोक्ता की वैधानिक जिम्मेदारी है। उक्त प्रावधानों के अनुपालन में चूक <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 133 (क) [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 की धारा 85 (क)]</b> के अंतर्गत दंडनीय अपराध है, जिसके लिए कारावास एवं आर्थिक दंड का प्रावधान है।</p>
+                    <p style="text-align: justify; margin-bottom: 15px;">यह पत्र आपको अनुपालन सुनिश्चित करने हेतु सूचनार्थ जारी किया जा रहा है। यदि आपके संस्थान द्वारा अंशदान का भुगतान नहीं किया जाता है, तो <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 125 [ पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 की धारा 45क]</b> के अंतर्गत अंशदान निर्धारण तथा <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 129 से 132 [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 की धारा 45ग से 45झ]</b> के अंतर्गत वसूली की कार्यवाही प्रारंभ की जा सकती है। साथ ही <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 133(क) (पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 की धारा 85 (क))</b> के अंतर्गत अभियोजन की कार्यवाही भी की जा सकती है।</p>
+                    <p style="text-align: justify; margin-bottom: 15px;">अतः आपसे अनुरोध है कि चूक अवधि के लंबित अंशदान का भुगतान यथाशीघ्र करना सुनिश्चित करें। यदि आपके संस्थान द्वारा उक्त अवधि का अंशदान पूर्व में ही जमा किया जा चुका है, तो संबंधित चालान की प्रति इस कार्यालय को उपलब्ध कराने का कष्ट करें।</p>
+
+                    <div style="margin-top: 30px; text-align: right;">
+                        <strong>भवदीय,</strong><br><br><br>
+                        <strong>(..........................)</strong><br>
+                        <strong>उप निदेशक</strong>
+                    </div>
+                </div>`;
         }
 
         // 4. C-18 ADHOC NOTICE
         if (noticeType === 'C18_Adhoc') {
             return `
 
-                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18 (Adhoc), Speed Post/e-mail</div>
+                <div data-docx-header="1" style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">C-18 (Adhoc), Speed Post/e-mail</div>
 
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
                     ${headerHTML}
 
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/Ins</td>
                             <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1693,27 +1932,54 @@
                     <div style="margin-bottom: 20px;">
                         <strong>सेवा में,</strong><br>
                         <strong>M/s. ${empName}</strong><br>
-                        ${empAddress}<br>
+                        ${empAddress}<br><br>
+
+                        <strong>श्री/श्रीमति ...............</strong><br>
+                        पता ...............
                     </div>
 
-                    <p style="text-align: justify; font-weight: bold; text-decoration: underline; margin-bottom: 15px;">
-                        विषय: सामाजिक सुरक्षा संहिता, 2020 की धारा 125 [पूर्व में क.रा.बी. अधिनियम, 1948 की धारा 45-क] के तहत अंशदान के निर्धारण हेतु कारण बताओ नोटिस (Ad-hoc)।
+                    <p style="text-align: justify; font-weight: bold; margin-bottom: 15px;">
+                        महोदय,
                     </p>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        आपको सूचित किया जाता है कि अवधि <b>${adhocDefaulterPeriodText || periodText}</b> के लिए आपकी स्थापना द्वारा निर्धारित अंशदान का भुगतान नहीं किया गया है एवं रिकॉर्ड प्रस्तुत नहीं किए गए हैं।
+                        निवेदन है कि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 29 के साथ पठित धारा 31 [पूर्व में कर्मचारी राज्य बीमा अधिनियम, 1948 (इसके बाद इसे अधिनियम कहा गया है) की धारा 39 के साथ पठित धारा 40]</b> के अधीन, अधिनियम में व्याप्त किसी कारखाने/स्थापना के प्रधान नियोक्ता द्वारा कर्मचारी राज्य बीमा (केन्द्रीय) नियम, 1950 (यथा संशोधित) के नियम 51 में विनिर्दिष्ट दरों पर, प्रत्येक कर्मचारी के लिए नियोक्ता तथा कर्मचारी दोनों के अंशदान का भुगतान किया जाना अपेक्षित है। कर्मचारी राज्य बीमा (साधारण) विनियम, 1950 के विनियम 29, 31 तथा 33 के अनुसार अंशदान इस प्रयोजन के लिए निर्धारित कालावधि के अंदर, निगम द्वारा प्राधिकृत बैंक में जमा किए जाने अपेक्षित हैं, जब तक कि इसके लिए अन्यथा न कहा गया हो।
+                    </p>
+                    
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        क.रा.बी. (साधारण) विनियम 1950 के विनियम 32 के अधीन प्रत्येक माह की समाप्ति पर यथा विनिर्दिष्ट प्रपत्र-6 में अंशदानों का मासिक ब्योरा प्रस्तुत किया जाना है।
                     </p>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        अतः उपलब्ध तथ्यों के आधार पर आपकी देयता का तदर्थ (Ad-hoc) निर्धारण कुल राशि <b>${totalAdhocDemand}</b> प्रस्तावित किया जाता है।
+                        1. कर्मचारी राज्य बीमा (साधारण) विनियम, 1950 के विनियम 31 के साथ पठित विनियम 29 के अनुसार अंशदान का भुगतान करने में विफल रहने पर अंशदानों के भुगतान करने में चूक या विलम्‍ब के प्रत्येक दिन के लिए अंशदान के बकायों पर प्रधान नियोक्ता द्वारा क.रा.बी. (साधारण) विनियम, 1950 के विनियम 31क के अधीन 19.10.1989 तक 6% प्रतिवर्ष की दर से, 20.10.1989 से 31.08.1994 तक 12% प्रतिवर्ष की दर से, 01.09.1994 से 30.09.2005 तक 15% प्रतिवर्ष की दर से तथा 01.10.2005 से 12% की दर से ब्याज देय है। <b>समाजिक सुरक्षा संहिता, 2020 [पूर्व में क.रा.बी. अधिनियम]</b> या उसके अधीन विरचित विनियमों के अधीन देय किसी भी ब्याज की वसूली <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 129 से 132 [पूर्व में क.रा.बी. अधिनियम की धारा 45ग से 45झ]</b> के अधीन भू-राजस्‍व के बकाया के रूप में की जाएगी।
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        2. सूचना क्षेत्रीय निदेशक/संयुक्त निदेशक/उप निदेशक, कर्मचारी राज्य बीमा निगम के समक्ष प्रस्तुत की गई और उस पर विचार करने पर उनके समक्ष यह विश्वास करने का आधार है कि, आपने कानूनी उपबंधों के अनुसार अंशदानों का अभी तक भुगतान नहीं किया है तथा अंशदानों के मासिक ब्योरे भी नहीं भेजे हैं। <b>${adhocDefaulterPeriodText || periodText}</b>
+                    </p>
+
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        3.कृपया ध्यान दें कि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 125 [पूर्व में क.रा.बी. अधिनियम की धारा 45क]</b> के अधीन यदि कोई कारखाना/स्थापना <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 123 [पूर्व में क.रा.बी. अधिनियम की धारा 44]</b> के उपबंधों के अनुसार किसी प्रकार के ब्‍योरे, विवरण, रजिस्‍टर का रिकार्ड प्रस्‍तुत नहीं करता, भेजता या रखता तो निगम इस संबंध में उपलब्‍ध सूचना के आधार पर आदेश द्वारा कारखाना/स्‍थापना के कर्मचारियों के संबंध में देय अंशदानों की राशि अवधारित कर सकता है तथा उक्‍त राशि <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 129 से 132 [पूर्व में क.रा.बी. अधिनियम की धारा 45ग से 45झ]</b> के अधीन वसूल की जा सकती है।
+                    </p>
+                    
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">    
+                        4.तथा जबकि, <b>सामाजिक सुरक्षा संहिता, 2020 की धारा 125 [पूर्व में क.रा.बी. अधिनियम की धारा 45क]</b> के अधीन आपके कारखाने/स्थापना के कर्मचारियों के संबंध में देय अंशदान की राशि निर्धारित तथा वसूली करने का प्रस्‍ताव है जो निम्‍न प्रकार है: -
                     </p>
 
                     <div style="margin: 15px 0;">${buildTableHTML('tableAdhoc')}</div>
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        यदि आपको उक्त निर्धारण से आपत्ति है, तो आपको दिनांक <b>${hearingDate}</b> को व्यक्तिगत सुनवाई (Personal Hearing) का अवसर प्रदान किया जाता है।
+                        तथा, जबकि उक्‍त निर्धारण तथा वसूली के विरुद्ध <b>मैसर्स ${empName}</b> को कारण बताने का एक अवसर प्रदान करने का प्रस्‍ताव है।
                     </p>
 
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        कृपया 30 दिन के अंदर कारण बताएं कि उन पर उपर्युक्‍त यथा प्रस्‍तावित निर्धारण क्‍यों न किया जाए। यदि आपको कोई आपत्ति है तो एतद्द्वारा इसका स्‍पष्‍टीकरण देने तथा/या ऊपर विनिर्दिष्‍ट समय के अंदर उपर्युक्‍त अवधि के लिए आपके रिकार्ड के अनुसार देय वास्‍तविक अंशदानों के पूरे ब्‍योरे देते हुए एक विवरण पेश करने का अवसर दिया जाता है। यदि आप अपने मामले को व्‍यक्तिगत रूप से निरूपित करना चाहते हैं तो आप अपने मामले को स्‍पष्‍ट करने के लिए आवश्‍यक दस्‍तावेजों के साथ दिनांक <b>${hearingDate}</b> को स्‍वयं या किसी प्राधिकृत प्रतिनिधि के माध्‍यम से अधोहस्‍ताक्षरकर्ता अधिकारी के सामने उपस्थित हों।
+                    </p>
+                    
+                    <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
+                        5. कृपया ध्यान रखें कि जब तक उपर्युक्त विनिर्दिष्ट समय के अंदर इस कार्यालय को संदर्भ गत कालावधियों के लिए वास्तविक देय बताते हुए ऊपर पैरा-4 में यथा उल्लिखित स्पष्टीकरण तथा/या कोई बयान प्रस्तुत नहीं करेंगे तो यह कार्यालय गुण-अवगुण के आधार पर मामले में अगली कार्रवाई करेगा तथा सामाजिक सुरक्षा संहिता, 2020 की धारा 125 [पूर्व में क.रा.बी. अधिनियम की धारा 45क] के अधीन एक आदेश पारित किया जाएगा तथा आपकी ओर से देय अंशदान की राशि निर्धारित की जाएगी तथा देय राशि के भुगतान में चूक या विलम्‍ब के प्रत्येक दिन के लिए देय अंशदान के बकायों पर कर्मचारी राज्य बीमा (साधारण) विनियम 1950 के विनियम 31क के अधीन 19.10.1989 तक 6% की वार्षिक दर से,20.10.1989 से 31.08.1994 तक 12% की दर से, 01.09.1994 से 30.09.2005 तक 15% की वार्षिक दर से तथा 01.10.2005 से 12% की दर से ब्याज सहित उक्त राशि सामाजिक सुरक्षा संहिता,2020 की धारा 129 से 132 [पूर्व में क.रा.बी. अधिनियम की धारा 45ग से 45झ] के अधीन भू-राजस्‍व के बकाया के रूप में वसूल की जाएगी।
+                    </p>                        
+                    
                     <div style="margin-top: 40px; text-align: right;">
                         <strong>भवदीय</strong><br><br><br>
                         <strong>(____________)</strong><br>
@@ -1728,14 +1994,14 @@
             
             return `
 
-                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Interest Notice, Speed Post/e-mail</div>
+                <div data-docx-header="1" style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Interest Notice, Speed Post/e-mail</div>
 
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
                     ${headerHTML}
 
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/Ins</td>
                             <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1765,7 +2031,7 @@
 
 
                     <p style="text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-                        जबकि आप अनुबंधित अवधि के अंदर अंशदान का भुगतान करने में विफल रहे हैं, आपके द्वारा नीचे दिए ब्‍यौरों के अनुसार <b>${totalInterest} ${interestData.words}</b> रुपये ब्‍याज का भुगतान अपेक्षित है :-
+                        जबकि आप अनुबंधित अवधि के अंदर अंशदान का भुगतान करने में विफल रहे हैं, आपके द्वारा नीचे दिए ब्‍यौरों के अनुसार <b>${totalInterest} ${interestData.words}</b> ब्‍याज का भुगतान अपेक्षित है :-
                     </p>
 
                     <div style="margin: 15px 0;">${buildTableHTML('tableInterest')}</div>
@@ -1786,14 +2052,14 @@
         if (noticeType === 'D18_Damages' || noticeType === 'Damages_Notice') {
             return `
 
-                <div style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">D-18 (Damages Notice), Speed Post/e-mail</div>
+                <div data-docx-header="1" style="text-align: right; font-weight: bold; font-size: 9pt; margin-bottom: 5px;">D-18 (Damages Notice), Speed Post/e-mail</div>
 
                 <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5; color: #000; max-width: 7.2in; width: 100%; margin: auto;">
                     ${headerHTML}
 
                     <table style="width: 18.5cm; margin: 0 auto 15px auto; border-collapse: collapse; border: none !important; font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-weight: bold;">
                         <tr style="border: none !important;">
-                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/BEC</td>
+                            <td style="text-align: left; border: none !important;">संख्या: ${empCode}/Ins</td>
                             <td style="text-align: right; border: none !important;">दिनांक: ${noticeDate}</td>
                         </tr>
                     </table>
@@ -1851,12 +2117,238 @@
         return `<p style="color:red;">त्रुटि: अमान्य नोटिस प्रकार चुना गया है।</p>`;
     }
 
+    // =====================================================================
+    //  असली Word (.docx) डाउनलोड
+    //  Preview में दिख रहे नोटिस को (रंग, बोल्ड, तालिका, लोगो सहित) .docx में बदलता है।
+    //  हेडर (लोगो/नाम) Word के "पहले पन्ने के हेडर" में जाता है, ताकि Word में
+    //  उस पर डबल-क्लिक करके आसानी से बदला जा सके।
+    // =====================================================================
+    async function downloadNoticeDocx(noticeType) {
+        if (typeof docx === 'undefined') {
+            alert('.docx बनाने वाली library लोड नहीं हो सकी (इसके लिए इंटरनेट चाहिए)।\n\nकृपया इंटरनेट चालू करके पेज रीफ़्रेश करें, या "पुराना (.doc)" बटन से डाउनलोड करें।');
+            return;
+        }
+        try {
+            const D = docx;
+            const root = document.getElementById("noticePreviewContainer");
+            if (!root || !root.firstElementChild) { alert('पहले नोटिस Preview खोलें।'); return; }
+
+            const empCode = document.getElementById("empCode")?.innerText || "Employer";
+            const timestamp = typeof getFormattedTimestamp === 'function' ? getFormattedTimestamp() : new Date().getTime();
+
+            const PAGE_W = 11906, PAGE_H = 16838, MARGIN = 1134;           // A4, 2 सेमी मार्जिन
+            const CONTENT_W = PAGE_W - 2 * MARGIN;                         // लिखने योग्य चौड़ाई (DXA)
+            const FONT = { ascii: "Times New Roman", hAnsi: "Times New Roman", cs: "Mangal", eastAsia: "Mangal" };
+            const BLOCK = new Set(['div','p','table','h1','h2','h3','h4','ul','ol','li','section']);
+
+            const px = v => { let n = parseFloat(v); return isNaN(n) ? 0 : n; };
+            const toHex = c => {
+                const m = (c || '').match(/rgba?\(([^)]+)\)/); if (!m) return null;
+                const p = m[1].split(',').map(x => parseFloat(x));
+                if (p.length === 4 && p[3] === 0) return null;
+                return p.slice(0,3).map(v => Math.round(v).toString(16).padStart(2,'0')).join('').toUpperCase();
+            };
+
+            function runStyle(el) {
+                const cs = getComputedStyle(el);
+                const bold = cs.fontWeight === 'bold' || parseInt(cs.fontWeight) >= 600;
+                const italics = cs.fontStyle === 'italic';
+                const half = Math.max(16, Math.round(px(cs.fontSize) * 0.75 * 2));
+                let color = toHex(cs.color); if (color === '000000') color = undefined;
+                return {
+                    font: FONT, bold, boldComplexScript: bold, italics, italicsComplexScript: italics,
+                    underline: cs.textDecorationLine.includes('underline') ? {} : undefined,
+                    size: half, sizeComplexScript: half, color
+                };
+            }
+
+            function imageRunFrom(img) {
+                const src = img.getAttribute('src') || '';
+                const m = src.match(/^data:image\/(png|jpe?g|gif|bmp);base64,(.+)$/i);
+                if (!m) return null;
+                const bin = atob(m[2]); const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                const nw = img.naturalWidth || 700, nh = img.naturalHeight || 150;
+                const w = Math.min(nw, Math.round(CONTENT_W / 15));          // पेज की चौड़ाई से अधिक नहीं
+                const h = Math.round(w * nh / nw);
+                const t = m[1].toLowerCase().replace('jpeg','jpg');
+                return new D.ImageRun({ type: t, data: bytes, transformation: { width: w, height: h } });
+            }
+
+            // inline सामग्री को descriptors की सूची में इकट्ठा करें
+            function collectInline(node, buf) {
+                node.childNodes.forEach(ch => {
+                    if (ch.nodeType === 3) {
+                        let t = ch.textContent.replace(/\s+/g, ' ');
+                        if (!t) return;
+                        const last = buf[buf.length - 1];
+                        if (!last || last.br) t = t.replace(/^ /, '');
+                        if (t) buf.push({ t, s: runStyle(ch.parentElement) });
+                    } else if (ch.nodeType === 1) {
+                        const tag = ch.tagName.toLowerCase();
+                        if (tag === 'br') buf.push({ br: true });
+                        else if (tag === 'img') { const r = imageRunFrom(ch); if (r) buf.push({ img: r }); }
+                        else if (!BLOCK.has(tag) && !ch.hasAttribute('data-docx-header')) collectInline(ch, buf);
+                    }
+                });
+            }
+
+            function makeParagraph(buf, el) {
+                while (buf.length && buf[0].br) buf.shift();
+                while (buf.length && buf[buf.length-1].br) buf.pop();
+                if (buf.length && buf[buf.length-1].t) buf[buf.length-1].t = buf[buf.length-1].t.replace(/ $/, '');
+                if (!buf.some(x => x.br || x.img || (x.t && x.t.trim()))) return null;
+
+                const cs = getComputedStyle(el);
+                const align = { center: D.AlignmentType.CENTER, right: D.AlignmentType.RIGHT, justify: D.AlignmentType.BOTH }[cs.textAlign] || D.AlignmentType.LEFT;
+                const mb = el.style && el.style.marginBottom ? px(el.style.marginBottom) : px(cs.marginBottom);
+                const mt = el.style && el.style.marginTop ? px(el.style.marginTop) : 0;
+                const ind = px(cs.textIndent);
+                const children = buf.map(x => x.br ? new D.TextRun({ break: 1 }) : x.img ? x.img : new D.TextRun({ text: x.t, ...x.s }));
+                return new D.Paragraph({
+                    alignment: align, children,
+                    spacing: { before: Math.round(mt * 15), after: Math.round(Math.min(mb, 30) * 15), line: 276, lineRule: D.LineRuleType.AUTO },
+                    indent: ind > 0 ? { firstLine: Math.round(ind * 15) } : undefined
+                });
+            }
+
+            function blockContent(el, out) {
+                let buf = [];
+                const flush = () => { const p = makeParagraph(buf, el); if (p) out.push(p); buf = []; };
+                el.childNodes.forEach(ch => {
+                    if (ch.nodeType === 1) {
+                        if (ch.hasAttribute('data-docx-header')) return;     // हेडर अलग से जाता है
+                        const tag = ch.tagName.toLowerCase();
+                        if (tag === 'table') {
+                            flush();
+                            out.push(convertTable(ch));
+                            out.push(new D.Paragraph({ children: [], spacing: { before: 0, after: 0, line: 200, lineRule: D.LineRuleType.EXACT } }));
+                            return;
+                        }
+                        if (BLOCK.has(tag)) { flush(); blockContent(ch, out); return; }
+                    }
+                    collectInline({ childNodes: [ch] }, buf);
+                });
+                flush();
+            }
+
+            function cellBorder(cs, side) {
+                const w = px(cs['border' + side + 'Width']);
+                if (w <= 0 || cs['border' + side + 'Style'] === 'none') return { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+                return { style: D.BorderStyle.SINGLE, size: Math.max(4, Math.round(w * 6)), color: toHex(cs['border' + side + 'Color']) || '000000' };
+            }
+
+            function convertTable(tbl) {
+                const rows = Array.from(tbl.rows);
+                const rects = rows.map(r => Array.from(r.cells).map(c => c.getBoundingClientRect()));
+                const tRect = tbl.getBoundingClientRect();
+                const xs = new Set();
+                rects.forEach(r => r.forEach(rc => { xs.add(Math.round(rc.left - tRect.left)); xs.add(Math.round(rc.right - tRect.left)); }));
+                const bounds = Array.from(xs).sort((a,b) => a - b).filter((v, i, a) => i === 0 || v - a[i-1] > 2);
+                const totalW = bounds[bounds.length-1] - bounds[0] || 1;
+                const colW = []; for (let i = 1; i < bounds.length; i++) colW.push(Math.max(300, Math.round((bounds[i] - bounds[i-1]) / totalW * CONTENT_W)));
+                const idx = v => { let k = 0, best = 1e9; bounds.forEach((b, i) => { const d = Math.abs(b - v); if (d < best) { best = d; k = i; } }); return k; };
+                // हर कॉलम की न्यूनतम चौड़ाई = उसके सबसे लंबे बिना-टूटने वाले शब्द के अनुसार (ताकि तारीख़/संख्या दो पंक्तियों में न टूटें)
+                const minW = colW.map(() => 500);
+                rows.forEach((row, ri) => Array.from(row.cells).forEach((cell, ci) => {
+                    const rc = rects[ri][ci];
+                    const a = idx(Math.round(rc.left - tRect.left)), b = idx(Math.round(rc.right - tRect.left));
+                    if (b - a !== 1) return;
+                    const fs = px(getComputedStyle(cell).fontSize) || 13;
+                    const longest = Math.max(1, ...cell.innerText.split(/\s+/).map(w => w.length));
+                    const need = Math.round(longest * fs * 0.52 * 15 + 240);
+                    if (need > minW[a]) minW[a] = need;
+                }));
+                const sumMin = minW.reduce((a, b) => a + b, 0);
+                if (sumMin > CONTENT_W) minW.forEach((v, i) => { minW[i] = Math.floor(v * CONTENT_W / sumMin); });   // कुल चौड़ाई से अधिक न हो
+                for (let it = 0; it < 4; it++) {
+                    let deficit = 0, slack = 0;
+                    colW.forEach((w, i) => { if (w < minW[i]) { deficit += minW[i] - w; colW[i] = minW[i]; } else slack += w - minW[i]; });
+                    if (deficit <= 0 || slack <= 0) break;
+                    colW.forEach((w, i) => { if (w > minW[i]) colW[i] = Math.max(minW[i], w - Math.round(deficit * (w - minW[i]) / slack)); });
+                }
+                const fix = CONTENT_W - colW.reduce((a,b) => a + b, 0); colW[colW.length-1] += fix;
+
+                const trs = rows.map((row, ri) => {
+                    const cells = Array.from(row.cells).map((cell, ci) => {
+                        const rc = rects[ri][ci], cs = getComputedStyle(cell);
+                        const a = idx(Math.round(rc.left - tRect.left)), b = idx(Math.round(rc.right - tRect.left));
+                        const span = Math.max(1, b - a);
+                        let width = 0; for (let k = a; k < a + span; k++) width += colW[k] || 0;
+                        const kids = []; blockContent(cell, kids);
+                        if (!kids.length) kids.push(new D.Paragraph({ children: [] }));
+                        const bg = toHex(cs.backgroundColor);
+                        return new D.TableCell({
+                            children: kids, columnSpan: span > 1 ? span : undefined,
+                            width: { size: width, type: D.WidthType.DXA },
+                            shading: bg && bg !== 'FFFFFF' ? { type: D.ShadingType.CLEAR, color: 'auto', fill: bg } : undefined,
+                            verticalAlign: cs.verticalAlign === 'middle' ? D.VerticalAlign.CENTER : D.VerticalAlign.TOP,
+                            margins: { top: Math.round(px(cs.paddingTop) * 15), bottom: Math.round(px(cs.paddingBottom) * 15), left: Math.round(px(cs.paddingLeft) * 15), right: Math.round(px(cs.paddingRight) * 15) },
+                            borders: { top: cellBorder(cs,'Top'), bottom: cellBorder(cs,'Bottom'), left: cellBorder(cs,'Left'), right: cellBorder(cs,'Right') }
+                        });
+                    });
+                    return new D.TableRow({ children: cells, cantSplit: true, tableHeader: row.parentElement.tagName === 'THEAD' });
+                });
+                return new D.Table({ rows: trs, width: { size: CONTENT_W, type: D.WidthType.DXA }, columnWidths: colW, layout: D.TableLayoutType.FIXED });
+            }
+
+            // ---- हेडर (पहले पन्ने का हेडर) ----
+            const headerKids = [];
+            root.querySelectorAll('[data-docx-header]').forEach(h => {
+                blockContent(h, headerKids);
+                if (px(getComputedStyle(h).borderBottomWidth) > 0) {
+                    headerKids.push(new D.Paragraph({
+                        children: [], spacing: { after: 120, line: 100, lineRule: D.LineRuleType.EXACT },
+                        border: { bottom: { style: D.BorderStyle.SINGLE, size: 6, color: '999999', space: 1 } }
+                    }));
+                }
+            });
+            if (!headerKids.length) headerKids.push(new D.Paragraph({ children: [] }));
+
+            // ---- मुख्य सामग्री ----
+            const bodyKids = [];
+            blockContent(root, bodyKids);
+            if (!bodyKids.length || bodyKids[bodyKids.length-1] instanceof D.Table) bodyKids.push(new D.Paragraph({ children: [] }));
+
+            const doc = new D.Document({
+                creator: 'ESIC C-6 Tool', title: `${noticeType} Notice`,
+                styles: { default: { document: { run: { font: FONT, size: 22, sizeComplexScript: 22 } } } },
+                sections: [{
+                    properties: {
+                        titlePage: true,
+                        page: { size: { width: PAGE_W, height: PAGE_H }, margin: { top: 1134, bottom: 1134, left: MARGIN, right: MARGIN, header: 567, footer: 567 } }
+                    },
+                    headers: {
+                        first: new D.Header({ children: headerKids }),
+                        default: new D.Header({ children: [new D.Paragraph({ children: [] })] })
+                    },
+                    children: bodyKids
+                }]
+            });
+
+            const blob = await D.Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${noticeType}_Notice_${empCode}_${timestamp}.docx`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch (err) {
+            console.error(err);
+            alert('.docx बनाते समय त्रुटि आई: ' + err.message + '\n\nकृपया "पुराना (.doc)" बटन से डाउनलोड करें।');
+        }
+    }
+
     function previewNotice(noticeType) {
         let htmlContent = generateNoticeHTML(noticeType);
         document.getElementById("noticePreviewContainer").innerHTML = htmlContent;
 
         document.getElementById("btnModalDownload").onclick = function() {
             downloadNoticeWord(noticeType);
+        };
+
+        document.getElementById("btnModalDocx").onclick = function() {
+            downloadNoticeDocx(noticeType);
         };
 
         document.getElementById("noticeModal").style.display = "flex";
